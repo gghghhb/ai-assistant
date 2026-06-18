@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>AI 分析助手</title>
-  <!-- 引入 marked.js 渲染 Markdown -->
+  <title>AI 分析助手 Pro</title>
+  <!-- marked.js 渲染 Markdown -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -42,6 +42,17 @@
       font-size: 18px;
       font-weight: 600;
       color: #333;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .model-badge {
+      background: #e8f0fe;
+      color: #1a73e8;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
     }
     .header .actions {
       display: flex;
@@ -79,6 +90,7 @@
     }
     .message.assistant {
       align-self: flex-start;
+      width: 100%;
     }
     .message .bubble {
       padding: 10px 14px;
@@ -118,6 +130,10 @@
       align-items: center;
       gap: 4px;
     }
+    /* 流式输出时保留换行 */
+    .message.assistant .bubble.streaming {
+      white-space: pre-wrap;
+    }
 
     /* 底部输入区 */
     .input-area {
@@ -128,20 +144,36 @@
       flex-direction: column;
       gap: 8px;
     }
-    .skill-selector {
+    .active-skills {
       display: flex;
+      flex-wrap: wrap;
       gap: 6px;
+      min-height: 0;
+    }
+    .active-skill-tag {
+      background: #e0f0ff;
+      color: #0066cc;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .active-skill-tag button {
+      background: none;
+      border: none;
+      color: #0066cc;
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+      padding: 0;
+    }
+    .skill-actions {
+      display: flex;
+      gap: 8px;
       align-items: center;
       flex-wrap: wrap;
-    }
-    .skill-selector select, .skill-selector input {
-      padding: 8px 10px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      font-size: 14px;
-      background: #fff;
-      flex: 1;
-      min-width: 120px;
     }
     .input-row {
       display: flex;
@@ -194,7 +226,7 @@
       gap: 4px;
     }
 
-    /* 设置弹窗 */
+    /* 弹窗通用 */
     .modal {
       display: none;
       position: fixed;
@@ -211,6 +243,8 @@
       padding: 20px;
       width: 90%;
       max-width: 400px;
+      max-height: 80vh;
+      overflow-y: auto;
       display: flex;
       flex-direction: column;
       gap: 12px;
@@ -219,11 +253,16 @@
       font-size: 16px;
       font-weight: 600;
     }
-    .modal-content input {
+    .modal-content input, .modal-content select, .modal-content textarea {
       padding: 10px;
       border: 1px solid #ddd;
       border-radius: 8px;
       font-size: 14px;
+      font-family: inherit;
+    }
+    .modal-content textarea {
+      resize: vertical;
+      min-height: 80px;
     }
     .modal-content .btn-row {
       display: flex;
@@ -239,13 +278,50 @@
     }
     .btn-primary { background: #007aff; color: #fff; }
     .btn-secondary { background: #f0f0f0; color: #333; }
+    .btn-danger { background: #ff3b30; color: #fff; }
+
+    /* Skill 库列表项 */
+    .skill-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 8px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .skill-item:last-child { border-bottom: none; }
+    .skill-item input[type="checkbox"] {
+      margin-top: 2px;
+    }
+    .skill-item .skill-text {
+      flex: 1;
+      font-size: 14px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #333;
+    }
+    .skill-item .skill-meta {
+      font-size: 12px;
+      color: #999;
+    }
+    .skill-item .del-btn {
+      background: none;
+      border: none;
+      color: #ff3b30;
+      cursor: pointer;
+      font-size: 18px;
+    }
+    .empty-hint {
+      color: #999;
+      text-align: center;
+      padding: 20px;
+    }
   </style>
 </head>
 <body>
   <div class="app">
     <!-- 头部 -->
     <div class="header">
-      <h1>🧠 AI 分析助手</h1>
+      <h1>🧠 AI 助手 <span class="model-badge" id="currentModelBadge">deepseek-chat</span></h1>
       <div class="actions">
         <button class="icon-btn" id="clearBtn" title="清空对话">🗑️</button>
         <button class="icon-btn" id="settingsBtn" title="设置">⚙️</button>
@@ -255,37 +331,31 @@
     <!-- 聊天消息 -->
     <div class="chat-container" id="chatContainer">
       <div class="message assistant">
-        <div class="bubble">你好！选择技能（Skill）模板，输入问题或上传文件，我会帮你分析。</div>
+        <div class="bubble">你好！选择一个模型，从 Skill 库勾选想要的技能，就可以开始提问了。</div>
       </div>
     </div>
 
     <!-- 输入区域 -->
     <div class="input-area">
-      <!-- 技能选择 -->
-      <div class="skill-selector">
-        <select id="skillSelect">
-          <option value="">💬 直接提问（无 Skill）</option>
-          <option value="请对以下内容进行总结，突出关键点和结论：">📝 文档总结</option>
-          <option value="请分析以下代码的功能、潜在问题和优化建议：">💻 代码分析</option>
-          <option value="请将以下文本翻译为英文：">🌐 翻译为英文</option>
-          <option value="custom">✏️ 自定义 Skill...</option>
-        </select>
-        <input type="text" id="customSkillInput" placeholder="输入自定义提示词模板..." style="display:none;" />
-      </div>
+      <!-- 已激活的 Skills 标签 -->
+      <div class="active-skills" id="activeSkillsTags"></div>
 
-      <!-- 已选文件展示 -->
-      <div id="fileTag" style="display:none; font-size:13px; align-items:center; gap:6px;">
-        <span class="uploaded-file-name" id="fileNameTag">📎 文件</span>
-        <button style="background:none; border:none; cursor:pointer; font-size:16px;" onclick="removeFile()">✕</button>
-      </div>
-
-      <!-- 输入与发送 -->
-      <div class="input-row">
-        <textarea id="userInput" rows="1" placeholder="输入你的问题或指令..."></textarea>
+      <!-- Skill 库按钮 + 文件上传按钮 -->
+      <div class="skill-actions">
+        <button class="file-btn" id="skillLibraryBtn">🧩 Skill库</button>
         <label class="file-btn" title="上传文本文件">
-          📎
+          📎 文件
           <input type="file" id="fileInput" style="display:none;" accept=".txt,.md,.csv,.json,.xml,.yaml,.yml,.log,.py,.js,.html,.css,.java,.cpp,.c,.h">
         </label>
+        <div id="fileTag" style="display:none; align-items:center; gap:4px; font-size:13px;">
+          <span class="uploaded-file-name" id="fileNameTag">📎 文件</span>
+          <button style="background:none; border:none; cursor:pointer; font-size:16px;" onclick="removeFile()">✕</button>
+        </div>
+      </div>
+
+      <!-- 输入框与发送 -->
+      <div class="input-row">
+        <textarea id="userInput" rows="1" placeholder="输入你的问题..."></textarea>
         <button class="btn" id="sendBtn">➤</button>
       </div>
     </div>
@@ -297,7 +367,10 @@
         <label>DeepSeek API Key</label>
         <input type="password" id="apiKeyInput" placeholder="sk-...">
         <label>模型</label>
-        <input type="text" id="modelInput" value="deepseek-chat" placeholder="deepseek-chat">
+        <select id="modelSelect">
+          <option value="deepseek-chat">deepseek-chat</option>
+          <option value="deepseek-coder">deepseek-coder</option>
+        </select>
         <label>API 地址（默认 DeepSeek）</label>
         <input type="text" id="baseUrlInput" value="https://api.deepseek.com/v1/chat/completions">
         <div class="btn-row">
@@ -307,20 +380,40 @@
         <small style="color:#999;">Key 仅保存在你的浏览器中</small>
       </div>
     </div>
+
+    <!-- Skill 库弹窗 -->
+    <div class="modal" id="skillModal">
+      <div class="modal-content">
+        <h3>🧩 Skill 库</h3>
+        <p style="font-size:13px; color:#666;">勾选要启用的 Skill，可多选。关闭后自动应用到新消息。</p>
+        <div id="skillListContainer"></div>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <input type="text" id="newSkillName" placeholder="Skill 名称（可选）" style="flex:1;">
+          <button class="btn btn-primary" id="addSkillBtn">+ 新建</button>
+        </div>
+        <textarea id="newSkillContent" placeholder="输入 Skill 提示词模板（Markdown）..." rows="3"></textarea>
+        <div class="btn-row">
+          <button class="btn btn-secondary" id="closeSkillBtn">完成</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
-    // ---------- 状态管理 ----------
+    // ---------- 全局状态 ----------
     let messages = [];                     // 对话历史
-    let selectedFileContent = null;       // 上传的文本文件内容
+    let selectedFileContent = null;
     let selectedFileName = '';
+    let activeSkillIds = [];               // 当前激活的 Skill ID 列表
+    let skills = [];                       // 所有保存的 Skills
 
     // DOM 元素
     const chatContainer = document.getElementById('chatContainer');
     const userInput = document.getElementById('userInput');
     const sendBtn = document.getElementById('sendBtn');
-    const skillSelect = document.getElementById('skillSelect');
-    const customSkillInput = document.getElementById('customSkillInput');
+    const currentModelBadge = document.getElementById('currentModelBadge');
+    const activeSkillsTags = document.getElementById('activeSkillsTags');
+    const skillLibraryBtn = document.getElementById('skillLibraryBtn');
     const fileTag = document.getElementById('fileTag');
     const fileNameTag = document.getElementById('fileNameTag');
     const fileInput = document.getElementById('fileInput');
@@ -329,22 +422,68 @@
     const closeSettingsBtn = document.getElementById('closeSettingsBtn');
     const saveSettingsBtn = document.getElementById('saveSettingsBtn');
     const apiKeyInput = document.getElementById('apiKeyInput');
-    const modelInput = document.getElementById('modelInput');
+    const modelSelect = document.getElementById('modelSelect');
     const baseUrlInput = document.getElementById('baseUrlInput');
     const clearBtn = document.getElementById('clearBtn');
+    const skillModal = document.getElementById('skillModal');
+    const skillListContainer = document.getElementById('skillListContainer');
+    const newSkillName = document.getElementById('newSkillName');
+    const newSkillContent = document.getElementById('newSkillContent');
+    const addSkillBtn = document.getElementById('addSkillBtn');
+    const closeSkillBtn = document.getElementById('closeSkillBtn');
 
     // ---------- 本地存储 ----------
     function loadSettings() {
       apiKeyInput.value = localStorage.getItem('ds_api_key') || '';
-      modelInput.value = localStorage.getItem('ds_model') || 'deepseek-chat';
+      modelSelect.value = localStorage.getItem('ds_model') || 'deepseek-chat';
       baseUrlInput.value = localStorage.getItem('ds_base_url') || 'https://api.deepseek.com/v1/chat/completions';
+      updateModelBadge();
     }
     function saveSettings() {
       localStorage.setItem('ds_api_key', apiKeyInput.value.trim());
-      localStorage.setItem('ds_model', modelInput.value.trim());
+      localStorage.setItem('ds_model', modelSelect.value);
       localStorage.setItem('ds_base_url', baseUrlInput.value.trim());
+      updateModelBadge();
     }
+    function updateModelBadge() {
+      currentModelBadge.textContent = modelSelect.value;
+    }
+
+    // Skills 存储
+    function loadSkills() {
+      const saved = localStorage.getItem('skills_data');
+      if (saved) {
+        try { skills = JSON.parse(saved); } catch(e) { skills = []; }
+      } else {
+        // 默认几个 Skill
+        skills = [
+          { id: '1', name: '文档总结', content: '请对以下内容进行总结，突出关键点和结论：' },
+          { id: '2', name: '代码分析', content: '请分析以下代码的功能、潜在问题和优化建议：' },
+          { id: '3', name: '翻译为英文', content: '请将以下文本翻译为英文：' }
+        ];
+        saveSkills();
+      }
+      // 加载激活的 skills
+      const active = localStorage.getItem('active_skill_ids');
+      if (active) {
+        try { activeSkillIds = JSON.parse(active); } catch(e) { activeSkillIds = []; }
+      } else {
+        activeSkillIds = [];
+      }
+    }
+    function saveSkills() {
+      localStorage.setItem('skills_data', JSON.stringify(skills));
+    }
+    function saveActiveSkills() {
+      localStorage.setItem('active_skill_ids', JSON.stringify(activeSkillIds));
+    }
+
+    // 初始化加载
     loadSettings();
+    loadSkills();
+    renderActiveSkillTags();
+    // 初始显示模型
+    updateModelBadge();
 
     // ---------- 设置弹窗 ----------
     settingsBtn.addEventListener('click', () => settingsModal.classList.add('active'));
@@ -358,22 +497,117 @@
       if (e.target === settingsModal) settingsModal.classList.remove('active');
     });
 
-    // ---------- Skill 选择逻辑 ----------
-    skillSelect.addEventListener('change', () => {
-      if (skillSelect.value === 'custom') {
-        customSkillInput.style.display = 'inline-block';
-        customSkillInput.focus();
-      } else {
-        customSkillInput.style.display = 'none';
-      }
+    // ---------- Skill 库弹窗 ----------
+    skillLibraryBtn.addEventListener('click', openSkillModal);
+    closeSkillBtn.addEventListener('click', () => {
+      skillModal.classList.remove('active');
+      renderActiveSkillTags();
+    });
+    window.addEventListener('click', (e) => {
+      if (e.target === skillModal) skillModal.classList.remove('active');
     });
 
-    // 获取当前技能模板文本
-    function getSkillTemplate() {
-      if (skillSelect.value === 'custom') {
-        return customSkillInput.value.trim();
+    function openSkillModal() {
+      renderSkillList();
+      skillModal.classList.add('active');
+    }
+
+    function renderSkillList() {
+      skillListContainer.innerHTML = '';
+      if (skills.length === 0) {
+        skillListContainer.innerHTML = '<div class="empty-hint">暂无 Skill，在下方创建</div>';
+        return;
       }
-      return skillSelect.value;
+      skills.forEach(skill => {
+        const isActive = activeSkillIds.includes(skill.id);
+        const div = document.createElement('div');
+        div.className = 'skill-item';
+        div.innerHTML = `
+          <input type="checkbox" ${isActive ? 'checked' : ''} data-id="${skill.id}">
+          <div>
+            <div class="skill-text">${escapeHtml(skill.content)}</div>
+            <div class="skill-meta">${skill.name ? '名称: ' + escapeHtml(skill.name) : ''}</div>
+          </div>
+          <button class="del-btn" data-id="${skill.id}">🗑️</button>
+        `;
+        skillListContainer.appendChild(div);
+      });
+
+      // 复选框事件
+      document.querySelectorAll('#skillListContainer input[type="checkbox"]').forEach(cb => {
+        cb.addEventListener('change', (e) => {
+          const id = e.target.dataset.id;
+          if (e.target.checked) {
+            if (!activeSkillIds.includes(id)) activeSkillIds.push(id);
+          } else {
+            activeSkillIds = activeSkillIds.filter(i => i !== id);
+          }
+          saveActiveSkills();
+          // 实时更新标签（但弹窗还在打开）
+          renderActiveSkillTags();
+        });
+      });
+
+      // 删除按钮事件
+      document.querySelectorAll('#skillListContainer .del-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = e.target.dataset.id;
+          if (confirm('确定删除这个 Skill 吗？')) {
+            skills = skills.filter(s => s.id !== id);
+            activeSkillIds = activeSkillIds.filter(i => i !== id);
+            saveSkills();
+            saveActiveSkills();
+            renderSkillList();
+            renderActiveSkillTags();
+          }
+        });
+      });
+    }
+
+    // 新建 Skill
+    addSkillBtn.addEventListener('click', () => {
+      const name = newSkillName.value.trim();
+      const content = newSkillContent.value.trim();
+      if (!content) {
+        alert('请输入 Skill 内容');
+        return;
+      }
+      const newId = Date.now().toString();
+      skills.push({ id: newId, name: name || '未命名', content });
+      saveSkills();
+      newSkillName.value = '';
+      newSkillContent.value = '';
+      renderSkillList();
+    });
+
+    // 渲染输入框上方的激活 Skill 标签
+    function renderActiveSkillTags() {
+      activeSkillsTags.innerHTML = '';
+      activeSkillIds.forEach(id => {
+        const skill = skills.find(s => s.id === id);
+        if (!skill) return;
+        const tag = document.createElement('span');
+        tag.className = 'active-skill-tag';
+        tag.innerHTML = `${escapeHtml(skill.name || skill.content.slice(0,15))} <button data-id="${id}">✕</button>`;
+        tag.querySelector('button').addEventListener('click', (e) => {
+          e.stopPropagation();
+          activeSkillIds = activeSkillIds.filter(i => i !== id);
+          saveActiveSkills();
+          renderActiveSkillTags();
+          // 如果弹窗开着，刷新复选框状态
+          if (skillModal.classList.contains('active')) renderSkillList();
+        });
+        activeSkillsTags.appendChild(tag);
+      });
+    }
+
+    // 获取当前所有激活 Skill 的合并内容
+    function getCombinedSkillContent() {
+      return activeSkillIds
+        .map(id => skills.find(s => s.id === id))
+        .filter(Boolean)
+        .map(s => s.content)
+        .join('\n\n');
     }
 
     // ---------- 文件上传 ----------
@@ -391,7 +625,7 @@
         alert('文件读取失败，请重试');
         removeFile();
       };
-      reader.readAsText(file, 'UTF-8'); // 尝试以文本读取
+      reader.readAsText(file, 'UTF-8');
     });
 
     function removeFile() {
@@ -402,153 +636,21 @@
     }
 
     // ---------- 消息渲染 ----------
-    function addMessage(role, content, fileName = null) {
+    function addMessageElement(role) {
       const msgDiv = document.createElement('div');
       msgDiv.className = `message ${role}`;
-      
-      let bubbleHtml = '';
-      if (role === 'assistant') {
-        // 使用 marked 渲染 Markdown
-        bubbleHtml = marked.parse(content);
-      } else {
-        bubbleHtml = escapeHtml(content);
-        if (fileName) {
-          bubbleHtml += `<div class="file-attach">📎 ${escapeHtml(fileName)}</div>`;
-        }
-      }
-      
-      msgDiv.innerHTML = `<div class="bubble">${bubbleHtml}</div>`;
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      msgDiv.appendChild(bubble);
       chatContainer.appendChild(msgDiv);
-      chatContainer.scrollTop = chatContainer.scrollHeight;
+      return { msgDiv, bubble };
     }
 
     function addAssistantMessage(content) {
-      addMessage('assistant', content);
+      const { bubble } = addMessageElement('assistant');
+      bubble.innerHTML = marked.parse(content);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
     }
 
     function addUserMessage(text, fileName = null) {
-      addMessage('user', text, fileName);
-    }
-
-    function escapeHtml(text) {
-      return text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-    }
-
-    // ---------- 清空对话 ----------
-    clearBtn.addEventListener('click', () => {
-      if (confirm('确定清空所有对话吗？')) {
-        messages = [];
-        chatContainer.innerHTML = '';
-        addAssistantMessage('对话已清空，有什么可以帮你？');
-      }
-    });
-
-    // ---------- 发送消息 ----------
-    sendBtn.addEventListener('click', sendMessage);
-    userInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendMessage();
-      }
-    });
-
-    async function sendMessage() {
-      const userText = userInput.value.trim();
-      const skillTemplate = getSkillTemplate();
-      const hasFile = selectedFileContent !== null;
-
-      if (!userText && !hasFile) {
-        alert('请输入内容或上传文件');
-        return;
-      }
-
-      // 构建用户完整内容（用于展示和发送）
-      let displayText = userText || '(已上传文件)';
-      let fullUserContent = userText;
-
-      // 如果有 Skill 模板，前置
-      if (skillTemplate) {
-        fullUserContent = skillTemplate + '\n\n' + fullUserContent;
-      }
-      // 如果有文件内容，追加
-      if (hasFile) {
-        fullUserContent += '\n\n【上传文件内容】\n' + selectedFileContent;
-      }
-
-      // 显示用户消息
-      addUserMessage(displayText, selectedFileName);
-      
-      // 添加到对话历史
-      messages.push({ role: 'user', content: fullUserContent });
-
-      // 清空输入
-      userInput.value = '';
-      removeFile();
-
-      // 检查 API Key
-      const apiKey = localStorage.getItem('ds_api_key');
-      if (!apiKey) {
-        addAssistantMessage('⚠️ 请先在右上角设置中填写 DeepSeek API Key。');
-        return;
-      }
-
-      // 显示加载状态
-      const loadingMsg = document.createElement('div');
-      loadingMsg.className = 'message assistant';
-      loadingMsg.innerHTML = '<div class="bubble">思考中...</div>';
-      chatContainer.appendChild(loadingMsg);
-      chatContainer.scrollTop = chatContainer.scrollHeight;
-
-      try {
-        const baseUrl = localStorage.getItem('ds_base_url') || 'https://api.deepseek.com/v1/chat/completions';
-        const model = localStorage.getItem('ds_model') || 'deepseek-chat';
-        
-        const response = await fetch(baseUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-          },
-          body: JSON.stringify({
-            model: model,
-            messages: [
-              { role: 'system', content: '你是专业、智能的助手，会用 Markdown 格式清晰回复。' },
-              ...messages
-            ],
-            temperature: 0.7,
-            max_tokens: 4096
-          })
-        });
-
-        const data = await response.json();
-        // 移除加载消息
-        loadingMsg.remove();
-
-        if (data.choices && data.choices[0].message) {
-          const assistantContent = data.choices[0].message.content;
-          messages.push({ role: 'assistant', content: assistantContent });
-          addAssistantMessage(assistantContent);
-        } else {
-          throw new Error(data.error?.message || '未知错误');
-        }
-      } catch (error) {
-        loadingMsg.remove();
-        addAssistantMessage(`❌ 请求失败：${error.message}`);
-        // 移除刚才添加的user消息（回滚）
-        messages.pop();
-      }
-    }
-
-    // 自动调整文本框高度
-    userInput.addEventListener('input', () => {
-      userInput.style.height = 'auto';
-      userInput.style.height = userInput.scrollHeight + 'px';
-    });
-  </script>
-</body>
-</html>
+      const { bubble } = addMessageElemen
