@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>AI 分析助手 Pro</title>
-  <!-- marked.js 渲染 Markdown -->
+  <title>AI 分析助手</title>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -26,7 +25,6 @@
       box-shadow: 0 0 20px rgba(0,0,0,0.05);
       position: relative;
     }
-    /* 头部 */
     .header {
       padding: 12px 16px;
       background: #fff;
@@ -69,7 +67,6 @@
     }
     .icon-btn:active { background: #f0f0f0; }
 
-    /* 聊天区域 */
     .chat-container {
       flex: 1;
       overflow-y: auto;
@@ -85,13 +82,8 @@
       animation: fadeIn 0.2s ease;
     }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-    .message.user {
-      align-self: flex-end;
-    }
-    .message.assistant {
-      align-self: flex-start;
-      width: 100%;
-    }
+    .message.user { align-self: flex-end; }
+    .message.assistant { align-self: flex-start; width: 100%; }
     .message .bubble {
       padding: 10px 14px;
       border-radius: 18px;
@@ -130,12 +122,10 @@
       align-items: center;
       gap: 4px;
     }
-    /* 流式输出时保留换行 */
     .message.assistant .bubble.streaming {
       white-space: pre-wrap;
     }
 
-    /* 底部输入区 */
     .input-area {
       padding: 10px 12px;
       background: #fff;
@@ -226,7 +216,6 @@
       gap: 4px;
     }
 
-    /* 弹窗通用 */
     .modal {
       display: none;
       position: fixed;
@@ -249,10 +238,7 @@
       flex-direction: column;
       gap: 12px;
     }
-    .modal-content h3 {
-      font-size: 16px;
-      font-weight: 600;
-    }
+    .modal-content h3 { font-size: 16px; font-weight: 600; }
     .modal-content input, .modal-content select, .modal-content textarea {
       padding: 10px;
       border: 1px solid #ddd;
@@ -260,10 +246,7 @@
       font-size: 14px;
       font-family: inherit;
     }
-    .modal-content textarea {
-      resize: vertical;
-      min-height: 80px;
-    }
+    .modal-content textarea { resize: vertical; min-height: 80px; }
     .modal-content .btn-row {
       display: flex;
       justify-content: flex-end;
@@ -280,7 +263,6 @@
     .btn-secondary { background: #f0f0f0; color: #333; }
     .btn-danger { background: #ff3b30; color: #fff; }
 
-    /* Skill 库列表项 */
     .skill-item {
       display: flex;
       align-items: flex-start;
@@ -289,9 +271,7 @@
       border-bottom: 1px solid #f0f0f0;
     }
     .skill-item:last-child { border-bottom: none; }
-    .skill-item input[type="checkbox"] {
-      margin-top: 2px;
-    }
+    .skill-item input[type="checkbox"] { margin-top: 2px; }
     .skill-item .skill-text {
       flex: 1;
       font-size: 14px;
@@ -299,10 +279,7 @@
       word-break: break-word;
       color: #333;
     }
-    .skill-item .skill-meta {
-      font-size: 12px;
-      color: #999;
-    }
+    .skill-item .skill-meta { font-size: 12px; color: #999; }
     .skill-item .del-btn {
       background: none;
       border: none;
@@ -310,37 +287,28 @@
       cursor: pointer;
       font-size: 18px;
     }
-    .empty-hint {
-      color: #999;
-      text-align: center;
-      padding: 20px;
-    }
+    .empty-hint { color: #999; text-align: center; padding: 20px; }
   </style>
 </head>
 <body>
   <div class="app">
-    <!-- 头部 -->
     <div class="header">
-      <h1>🧠 AI 助手 <span class="model-badge" id="currentModelBadge">deepseek-chat</span></h1>
+      <h1>AI 助手 <span class="model-badge" id="currentModelBadge">deepseek-chat</span></h1>
       <div class="actions">
         <button class="icon-btn" id="clearBtn" title="清空对话">🗑️</button>
         <button class="icon-btn" id="settingsBtn" title="设置">⚙️</button>
       </div>
     </div>
 
-    <!-- 聊天消息 -->
     <div class="chat-container" id="chatContainer">
       <div class="message assistant">
         <div class="bubble">你好！选择一个模型，从 Skill 库勾选想要的技能，就可以开始提问了。</div>
       </div>
     </div>
 
-    <!-- 输入区域 -->
     <div class="input-area">
-      <!-- 已激活的 Skills 标签 -->
       <div class="active-skills" id="activeSkillsTags"></div>
 
-      <!-- Skill 库按钮 + 文件上传按钮 -->
       <div class="skill-actions">
         <button class="file-btn" id="skillLibraryBtn">🧩 Skill库</button>
         <label class="file-btn" title="上传文本文件">
@@ -353,7 +321,6 @@
         </div>
       </div>
 
-      <!-- 输入框与发送 -->
       <div class="input-row">
         <textarea id="userInput" rows="1" placeholder="输入你的问题..."></textarea>
         <button class="btn" id="sendBtn">➤</button>
@@ -400,257 +367,398 @@
   </div>
 
   <script>
-    // ---------- 全局状态 ----------
-    let messages = [];                     // 对话历史
-    let selectedFileContent = null;
-    let selectedFileName = '';
-    let activeSkillIds = [];               // 当前激活的 Skill ID 列表
-    let skills = [];                       // 所有保存的 Skills
+    (function() {
+      // 所有变量和函数都包在一个 IIFE 里，避免污染
+      let messages = [];
+      let selectedFileContent = null;
+      let selectedFileName = '';
+      let activeSkillIds = [];
+      let skills = [];
 
-    // DOM 元素
-    const chatContainer = document.getElementById('chatContainer');
-    const userInput = document.getElementById('userInput');
-    const sendBtn = document.getElementById('sendBtn');
-    const currentModelBadge = document.getElementById('currentModelBadge');
-    const activeSkillsTags = document.getElementById('activeSkillsTags');
-    const skillLibraryBtn = document.getElementById('skillLibraryBtn');
-    const fileTag = document.getElementById('fileTag');
-    const fileNameTag = document.getElementById('fileNameTag');
-    const fileInput = document.getElementById('fileInput');
-    const settingsBtn = document.getElementById('settingsBtn');
-    const settingsModal = document.getElementById('settingsModal');
-    const closeSettingsBtn = document.getElementById('closeSettingsBtn');
-    const saveSettingsBtn = document.getElementById('saveSettingsBtn');
-    const apiKeyInput = document.getElementById('apiKeyInput');
-    const modelSelect = document.getElementById('modelSelect');
-    const baseUrlInput = document.getElementById('baseUrlInput');
-    const clearBtn = document.getElementById('clearBtn');
-    const skillModal = document.getElementById('skillModal');
-    const skillListContainer = document.getElementById('skillListContainer');
-    const newSkillName = document.getElementById('newSkillName');
-    const newSkillContent = document.getElementById('newSkillContent');
-    const addSkillBtn = document.getElementById('addSkillBtn');
-    const closeSkillBtn = document.getElementById('closeSkillBtn');
+      // DOM 引用（在顶部获取，确保不为空）
+      const chatContainer = document.getElementById('chatContainer');
+      const userInput = document.getElementById('userInput');
+      const sendBtn = document.getElementById('sendBtn');
+      const currentModelBadge = document.getElementById('currentModelBadge');
+      const activeSkillsTags = document.getElementById('activeSkillsTags');
+      const skillLibraryBtn = document.getElementById('skillLibraryBtn');
+      const fileTag = document.getElementById('fileTag');
+      const fileNameTag = document.getElementById('fileNameTag');
+      const fileInput = document.getElementById('fileInput');
+      const settingsBtn = document.getElementById('settingsBtn');
+      const settingsModal = document.getElementById('settingsModal');
+      const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+      const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+      const apiKeyInput = document.getElementById('apiKeyInput');
+      const modelSelect = document.getElementById('modelSelect');
+      const baseUrlInput = document.getElementById('baseUrlInput');
+      const clearBtn = document.getElementById('clearBtn');
+      const skillModal = document.getElementById('skillModal');
+      const skillListContainer = document.getElementById('skillListContainer');
+      const newSkillName = document.getElementById('newSkillName');
+      const newSkillContent = document.getElementById('newSkillContent');
+      const addSkillBtn = document.getElementById('addSkillBtn');
+      const closeSkillBtn = document.getElementById('closeSkillBtn');
 
-    // ---------- 本地存储 ----------
-    function loadSettings() {
-      apiKeyInput.value = localStorage.getItem('ds_api_key') || '';
-      modelSelect.value = localStorage.getItem('ds_model') || 'deepseek-chat';
-      baseUrlInput.value = localStorage.getItem('ds_base_url') || 'https://api.deepseek.com/v1/chat/completions';
-      updateModelBadge();
-    }
-    function saveSettings() {
-      localStorage.setItem('ds_api_key', apiKeyInput.value.trim());
-      localStorage.setItem('ds_model', modelSelect.value);
-      localStorage.setItem('ds_base_url', baseUrlInput.value.trim());
-      updateModelBadge();
-    }
-    function updateModelBadge() {
-      currentModelBadge.textContent = modelSelect.value;
-    }
-
-    // Skills 存储
-    function loadSkills() {
-      const saved = localStorage.getItem('skills_data');
-      if (saved) {
-        try { skills = JSON.parse(saved); } catch(e) { skills = []; }
-      } else {
-        // 默认几个 Skill
-        skills = [
-          { id: '1', name: '文档总结', content: '请对以下内容进行总结，突出关键点和结论：' },
-          { id: '2', name: '代码分析', content: '请分析以下代码的功能、潜在问题和优化建议：' },
-          { id: '3', name: '翻译为英文', content: '请将以下文本翻译为英文：' }
-        ];
-        saveSkills();
+      function loadSettings() {
+        apiKeyInput.value = localStorage.getItem('ds_api_key') || '';
+        modelSelect.value = localStorage.getItem('ds_model') || 'deepseek-chat';
+        baseUrlInput.value = localStorage.getItem('ds_base_url') || 'https://api.deepseek.com/v1/chat/completions';
+        updateModelBadge();
       }
-      // 加载激活的 skills
-      const active = localStorage.getItem('active_skill_ids');
-      if (active) {
-        try { activeSkillIds = JSON.parse(active); } catch(e) { activeSkillIds = []; }
-      } else {
-        activeSkillIds = [];
+
+      function saveSettings() {
+        localStorage.setItem('ds_api_key', apiKeyInput.value.trim());
+        localStorage.setItem('ds_model', modelSelect.value);
+        localStorage.setItem('ds_base_url', baseUrlInput.value.trim());
+        updateModelBadge();
       }
-    }
-    function saveSkills() {
-      localStorage.setItem('skills_data', JSON.stringify(skills));
-    }
-    function saveActiveSkills() {
-      localStorage.setItem('active_skill_ids', JSON.stringify(activeSkillIds));
-    }
 
-    // 初始化加载
-    loadSettings();
-    loadSkills();
-    renderActiveSkillTags();
-    // 初始显示模型
-    updateModelBadge();
+      function updateModelBadge() {
+        currentModelBadge.textContent = modelSelect.value;
+      }
 
-    // ---------- 设置弹窗 ----------
-    settingsBtn.addEventListener('click', () => settingsModal.classList.add('active'));
-    closeSettingsBtn.addEventListener('click', () => settingsModal.classList.remove('active'));
-    saveSettingsBtn.addEventListener('click', () => {
-      saveSettings();
-      settingsModal.classList.remove('active');
-      addAssistantMessage('✅ 设置已保存。');
-    });
-    window.addEventListener('click', (e) => {
-      if (e.target === settingsModal) settingsModal.classList.remove('active');
-    });
+      function loadSkills() {
+        const saved = localStorage.getItem('skills_data');
+        if (saved) {
+          try { skills = JSON.parse(saved); } catch(e) { skills = []; }
+        } else {
+          skills = [
+            { id: '1', name: '文档总结', content: '请对以下内容进行总结，突出关键点和结论：' },
+            { id: '2', name: '代码分析', content: '请分析以下代码的功能、潜在问题和优化建议：' },
+            { id: '3', name: '翻译为英文', content: '请将以下文本翻译为英文：' }
+          ];
+          saveSkills();
+        }
+        const active = localStorage.getItem('active_skill_ids');
+        if (active) {
+          try { activeSkillIds = JSON.parse(active); } catch(e) { activeSkillIds = []; }
+        } else {
+          activeSkillIds = [];
+        }
+      }
 
-    // ---------- Skill 库弹窗 ----------
-    skillLibraryBtn.addEventListener('click', openSkillModal);
-    closeSkillBtn.addEventListener('click', () => {
-      skillModal.classList.remove('active');
+      function saveSkills() {
+        localStorage.setItem('skills_data', JSON.stringify(skills));
+      }
+
+      function saveActiveSkills() {
+        localStorage.setItem('active_skill_ids', JSON.stringify(activeSkillIds));
+      }
+
+      // 绑定事件前先初始化数据
+      loadSettings();
+      loadSkills();
       renderActiveSkillTags();
-    });
-    window.addEventListener('click', (e) => {
-      if (e.target === skillModal) skillModal.classList.remove('active');
-    });
 
-    function openSkillModal() {
-      renderSkillList();
-      skillModal.classList.add('active');
-    }
-
-    function renderSkillList() {
-      skillListContainer.innerHTML = '';
-      if (skills.length === 0) {
-        skillListContainer.innerHTML = '<div class="empty-hint">暂无 Skill，在下方创建</div>';
-        return;
-      }
-      skills.forEach(skill => {
-        const isActive = activeSkillIds.includes(skill.id);
-        const div = document.createElement('div');
-        div.className = 'skill-item';
-        div.innerHTML = `
-          <input type="checkbox" ${isActive ? 'checked' : ''} data-id="${skill.id}">
-          <div>
-            <div class="skill-text">${escapeHtml(skill.content)}</div>
-            <div class="skill-meta">${skill.name ? '名称: ' + escapeHtml(skill.name) : ''}</div>
-          </div>
-          <button class="del-btn" data-id="${skill.id}">🗑️</button>
-        `;
-        skillListContainer.appendChild(div);
+      // ---------- 事件绑定 ----------
+      settingsBtn.addEventListener('click', () => settingsModal.classList.add('active'));
+      closeSettingsBtn.addEventListener('click', () => settingsModal.classList.remove('active'));
+      saveSettingsBtn.addEventListener('click', () => {
+        saveSettings();
+        settingsModal.classList.remove('active');
+        addAssistantMessage('✅ 设置已保存。');
       });
-
-      // 复选框事件
-      document.querySelectorAll('#skillListContainer input[type="checkbox"]').forEach(cb => {
-        cb.addEventListener('change', (e) => {
-          const id = e.target.dataset.id;
-          if (e.target.checked) {
-            if (!activeSkillIds.includes(id)) activeSkillIds.push(id);
-          } else {
-            activeSkillIds = activeSkillIds.filter(i => i !== id);
-          }
-          saveActiveSkills();
-          // 实时更新标签（但弹窗还在打开）
+      window.addEventListener('click', (e) => {
+        if (e.target === settingsModal) settingsModal.classList.remove('active');
+        if (e.target === skillModal) {
+          skillModal.classList.remove('active');
           renderActiveSkillTags();
-        });
+        }
       });
 
-      // 删除按钮事件
-      document.querySelectorAll('#skillListContainer .del-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          const id = e.target.dataset.id;
-          if (confirm('确定删除这个 Skill 吗？')) {
-            skills = skills.filter(s => s.id !== id);
-            activeSkillIds = activeSkillIds.filter(i => i !== id);
-            saveSkills();
+      skillLibraryBtn.addEventListener('click', openSkillModal);
+      closeSkillBtn.addEventListener('click', () => {
+        skillModal.classList.remove('active');
+        renderActiveSkillTags();
+      });
+
+      function openSkillModal() {
+        renderSkillList();
+        skillModal.classList.add('active');
+      }
+
+      function renderSkillList() {
+        skillListContainer.innerHTML = '';
+        if (skills.length === 0) {
+          skillListContainer.innerHTML = '<div class="empty-hint">暂无 Skill，在下方创建</div>';
+          return;
+        }
+        skills.forEach(skill => {
+          const isActive = activeSkillIds.includes(skill.id);
+          const div = document.createElement('div');
+          div.className = 'skill-item';
+          div.innerHTML = `
+            <input type="checkbox" ${isActive ? 'checked' : ''} data-id="${skill.id}">
+            <div>
+              <div class="skill-text">${escapeHtml(skill.content)}</div>
+              <div class="skill-meta">${skill.name ? '名称: ' + escapeHtml(skill.name) : ''}</div>
+            </div>
+            <button class="del-btn" data-id="${skill.id}">🗑️</button>
+          `;
+          skillListContainer.appendChild(div);
+        });
+
+        document.querySelectorAll('#skillListContainer input[type="checkbox"]').forEach(cb => {
+          cb.onchange = (e) => {
+            const id = e.target.dataset.id;
+            if (e.target.checked) {
+              if (!activeSkillIds.includes(id)) activeSkillIds.push(id);
+            } else {
+              activeSkillIds = activeSkillIds.filter(i => i !== id);
+            }
             saveActiveSkills();
-            renderSkillList();
             renderActiveSkillTags();
-          }
+          };
         });
-      });
-    }
 
-    // 新建 Skill
-    addSkillBtn.addEventListener('click', () => {
-      const name = newSkillName.value.trim();
-      const content = newSkillContent.value.trim();
-      if (!content) {
-        alert('请输入 Skill 内容');
-        return;
+        document.querySelectorAll('#skillListContainer .del-btn').forEach(btn => {
+          btn.onclick = (e) => {
+            const id = e.target.dataset.id;
+            if (confirm('确定删除这个 Skill 吗？')) {
+              skills = skills.filter(s => s.id !== id);
+              activeSkillIds = activeSkillIds.filter(i => i !== id);
+              saveSkills();
+              saveActiveSkills();
+              renderSkillList();
+              renderActiveSkillTags();
+            }
+          };
+        });
       }
-      const newId = Date.now().toString();
-      skills.push({ id: newId, name: name || '未命名', content });
-      saveSkills();
-      newSkillName.value = '';
-      newSkillContent.value = '';
-      renderSkillList();
-    });
 
-    // 渲染输入框上方的激活 Skill 标签
-    function renderActiveSkillTags() {
-      activeSkillsTags.innerHTML = '';
-      activeSkillIds.forEach(id => {
-        const skill = skills.find(s => s.id === id);
-        if (!skill) return;
-        const tag = document.createElement('span');
-        tag.className = 'active-skill-tag';
-        tag.innerHTML = `${escapeHtml(skill.name || skill.content.slice(0,15))} <button data-id="${id}">✕</button>`;
-        tag.querySelector('button').addEventListener('click', (e) => {
-          e.stopPropagation();
-          activeSkillIds = activeSkillIds.filter(i => i !== id);
-          saveActiveSkills();
-          renderActiveSkillTags();
-          // 如果弹窗开着，刷新复选框状态
-          if (skillModal.classList.contains('active')) renderSkillList();
+      addSkillBtn.onclick = () => {
+        const name = newSkillName.value.trim();
+        const content = newSkillContent.value.trim();
+        if (!content) { alert('请输入 Skill 内容'); return; }
+        const newId = Date.now().toString();
+        skills.push({ id: newId, name: name || '未命名', content });
+        saveSkills();
+        newSkillName.value = '';
+        newSkillContent.value = '';
+        renderSkillList();
+      };
+
+      function renderActiveSkillTags() {
+        activeSkillsTags.innerHTML = '';
+        activeSkillIds.forEach(id => {
+          const skill = skills.find(s => s.id === id);
+          if (!skill) return;
+          const tag = document.createElement('span');
+          tag.className = 'active-skill-tag';
+          tag.innerHTML = `${escapeHtml(skill.name || skill.content.slice(0,15))} <button data-id="${id}">✕</button>`;
+          tag.querySelector('button').onclick = (e) => {
+            e.stopPropagation();
+            activeSkillIds = activeSkillIds.filter(i => i !== id);
+            saveActiveSkills();
+            renderActiveSkillTags();
+            if (skillModal.classList.contains('active')) renderSkillList();
+          };
+          activeSkillsTags.appendChild(tag);
         });
-        activeSkillsTags.appendChild(tag);
-      });
-    }
+      }
 
-    // 获取当前所有激活 Skill 的合并内容
-    function getCombinedSkillContent() {
-      return activeSkillIds
-        .map(id => skills.find(s => s.id === id))
-        .filter(Boolean)
-        .map(s => s.content)
-        .join('\n\n');
-    }
+      function getCombinedSkillContent() {
+        return activeSkillIds.map(id => skills.find(s => s.id === id)).filter(Boolean).map(s => s.content).join('\n\n');
+      }
 
-    // ---------- 文件上传 ----------
-    fileInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      selectedFileName = file.name;
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        selectedFileContent = event.target.result;
-        fileNameTag.textContent = `📎 ${selectedFileName}`;
-        fileTag.style.display = 'flex';
+      // 文件上传
+      fileInput.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        selectedFileName = file.name;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          selectedFileContent = event.target.result;
+          fileNameTag.textContent = '📎 ' + selectedFileName;
+          fileTag.style.display = 'flex';
+        };
+        reader.onerror = () => { alert('文件读取失败'); removeFile(); };
+        reader.readAsText(file, 'UTF-8');
       };
-      reader.onerror = () => {
-        alert('文件读取失败，请重试');
+
+      window.removeFile = function() {
+        selectedFileContent = null;
+        selectedFileName = '';
+        fileInput.value = '';
+        fileTag.style.display = 'none';
+      };
+
+      function escapeHtml(text) {
+        return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+      }
+
+      function addMessageElement(role) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `message ${role}`;
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble';
+        msgDiv.appendChild(bubble);
+        chatContainer.appendChild(msgDiv);
+        return { msgDiv, bubble };
+      }
+
+      function addAssistantMessage(content) {
+        const { bubble } = addMessageElement('assistant');
+        bubble.innerHTML = marked.parse(content);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      }
+
+      function addUserMessage(text, fileName) {
+        const { bubble } = addMessageElement('user');
+        let html = escapeHtml(text || '(已上传文件)');
+        if (fileName) html += `<div class="file-attach">📎 ${escapeHtml(fileName)}</div>`;
+        bubble.innerHTML = html;
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      }
+
+      function createStreamingMessage() {
+        const { bubble } = addMessageElement('assistant');
+        bubble.classList.add('streaming');
+        let content = '';
+        return {
+          append: (text) => {
+            content += text;
+            bubble.innerHTML = marked.parse(content);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+          },
+          finalize: () => {
+            bubble.classList.remove('streaming');
+            return content;
+          }
+        };
+      }
+
+      clearBtn.onclick = () => {
+        if (confirm('确定清空所有对话吗？')) {
+          messages = [];
+          chatContainer.innerHTML = '';
+          addAssistantMessage('对话已清空。');
+        }
+      };
+
+      async function sendMessage() {
+        const userText = userInput.value.trim();
+        const skillContent = getCombinedSkillContent();
+        const hasFile = selectedFileContent !== null;
+
+        if (!userText && !hasFile) {
+          alert('请输入内容或上传文件');
+          return;
+        }
+
+        let fullUserContent = '';
+        if (skillContent) fullUserContent += skillContent + '\n\n';
+        fullUserContent += userText || '';
+        if (hasFile) fullUserContent += '\n\n【上传文件内容】\n' + selectedFileContent;
+
+        addUserMessage(userText, selectedFileName);
+        messages.push({ role: 'user', content: fullUserContent });
+        userInput.value = '';
         removeFile();
-      };
-      reader.readAsText(file, 'UTF-8');
-    });
 
-    function removeFile() {
-      selectedFileContent = null;
-      selectedFileName = '';
-      fileInput.value = '';
-      fileTag.style.display = 'none';
-    }
+        const apiKey = localStorage.getItem('ds_api_key');
+        if (!apiKey) {
+          addAssistantMessage('⚠️ 请先在右上角设置中填写 DeepSeek API Key。');
+          return;
+        }
 
-    // ---------- 消息渲染 ----------
-    function addMessageElement(role) {
-      const msgDiv = document.createElement('div');
-      msgDiv.className = `message ${role}`;
-      const bubble = document.createElement('div');
-      bubble.className = 'bubble';
-      msgDiv.appendChild(bubble);
-      chatContainer.appendChild(msgDiv);
-      return { msgDiv, bubble };
-    }
+        const streamMsg = createStreamingMessage();
 
-    function addAssistantMessage(content) {
-      const { bubble } = addMessageElement('assistant');
-      bubble.innerHTML = marked.parse(content);
-      chatContainer.scrollTop = chatContainer.scrollHeight;
-    }
+        try {
+          const baseUrl = localStorage.getItem('ds_base_url') || 'https://api.deepseek.com/v1/chat/completions';
+          const model = localStorage.getItem('ds_model') || 'deepseek-chat';
 
-    function addUserMessage(text, fileName = null) {
-      const { bubble } = addMessageElemen
+          const requestBody = {
+            model: model,
+            messages: [
+              { role: 'system', content: '你是专业、智能的助手，会用 Markdown 格式清晰回复。' },
+              ...messages
+            ],
+            temperature: 0.7,
+            max_tokens: 4096,
+            stream: true
+          };
+
+          const response = await fetch(baseUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify(requestBody)
+          });
+
+          if (!response.ok) {
+            const errText = await response.text();
+            let errMsg = `HTTP ${response.status}`;
+            try {
+              const errJson = JSON.parse(errText);
+              errMsg = errJson.error?.message || errMsg;
+            } catch(e) {}
+            throw new Error(errMsg);
+          }
+
+          // 检查是否支持流式读取
+          if (!response.body || !response.body.getReader) {
+            // 不支持流式，退回普通 JSON 读取
+            const data = await response.json();
+            const content = data.choices?.[0]?.message?.content || '无回复';
+            streamMsg.append(content);
+            const finalContent = streamMsg.finalize();
+            messages.push({ role: 'assistant', content: finalContent });
+            return;
+          }
+
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let done = false;
+          let buffer = '';
+
+          while (!done) {
+            const { value, done: readerDone } = await reader.read();
+            done = readerDone;
+            if (value) {
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split('\n');
+              buffer = lines.pop() || '';
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  const dataStr = line.slice(6).trim();
+                  if (dataStr === '[DONE]') { done = true; break; }
+                  try {
+                    const parsed = JSON.parse(dataStr);
+                    const content = parsed.choices?.[0]?.delta?.content;
+                    if (content) streamMsg.append(content);
+                  } catch(e) {}
+                }
+              }
+            }
+          }
+
+          const finalContent = streamMsg.finalize();
+          messages.push({ role: 'assistant', content: finalContent });
+        } catch (error) {
+          streamMsg.bubble.innerHTML = marked.parse(`❌ 请求失败：${error.message}`);
+          streamMsg.finalize();
+          messages.pop();
+        }
+      }
+
+      sendBtn.onclick = sendMessage;
+      userInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
+        }
+      });
+
+      userInput.addEventListener('input', () => {
+        userInput.style.height = 'auto';
+        userInput.style.height = userInput.scrollHeight + 'px';
+      });
+
+    })();
+  </script>
+</body>
+</html>
