@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>AI 分析助手</title>
+  <!-- 引入 marked.js 渲染 Markdown -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f5f5f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .app {
+      width: 100%;
+      max-width: 800px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+      box-shadow: 0 0 20px rgba(0,0,0,0.05);
+      position: relative;
+    }
+    /* 头部 */
+    .header {
+      padding: 12px 16px;
+      background: #fff;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #333;
+    }
+    .header .actions {
+      display: flex;
+      gap: 8px;
+    }
+    .icon-btn {
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 6px;
+      color: #666;
+    }
+    .icon-btn:active { background: #f0f0f0; }
+
+    /* 聊天区域 */
+    .chat-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .message {
+      display: flex;
+      flex-direction: column;
+      max-width: 85%;
+      animation: fadeIn 0.2s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .message.user {
+      align-self: flex-end;
+    }
+    .message.assistant {
+      align-self: flex-start;
+    }
+    .message .bubble {
+      padding: 10px 14px;
+      border-radius: 18px;
+      font-size: 15px;
+      line-height: 1.5;
+      word-break: break-word;
+    }
+    .message.user .bubble {
+      background: #007aff;
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+    .message.assistant .bubble {
+      background: #f0f0f0;
+      color: #333;
+      border-bottom-left-radius: 4px;
+    }
+    .message.assistant .bubble pre {
+      background: #e0e0e0;
+      padding: 8px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 13px;
+    }
+    .message.assistant .bubble code {
+      font-family: monospace;
+      background: #e0e0e0;
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+    .file-attach {
+      font-size: 12px;
+      opacity: 0.8;
+      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* 底部输入区 */
+    .input-area {
+      padding: 10px 12px;
+      background: #fff;
+      border-top: 1px solid #eee;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .skill-selector {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .skill-selector select, .skill-selector input {
+      padding: 8px 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      background: #fff;
+      flex: 1;
+      min-width: 120px;
+    }
+    .input-row {
+      display: flex;
+      gap: 6px;
+      align-items: flex-end;
+    }
+    .input-row textarea {
+      flex: 1;
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      font-size: 15px;
+      resize: none;
+      outline: none;
+      max-height: 120px;
+      font-family: inherit;
+    }
+    .input-row .btn {
+      background: #007aff;
+      border: none;
+      color: #fff;
+      font-weight: 600;
+      padding: 10px 18px;
+      border-radius: 12px;
+      font-size: 15px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .input-row .btn:active { opacity: 0.8; }
+    .file-btn {
+      background: #f0f0f0;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 14px;
+    }
+    .file-btn:active { background: #e0e0e0; }
+    .uploaded-file-name {
+      font-size: 12px;
+      color: #666;
+      background: #f9f9f9;
+      padding: 2px 8px;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* 设置弹窗 */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.4);
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+    .modal.active { display: flex; }
+    .modal-content {
+      background: #fff;
+      border-radius: 16px;
+      padding: 20px;
+      width: 90%;
+      max-width: 400px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .modal-content h3 {
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .modal-content input {
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    .modal-content .btn-row {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .modal-content .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .btn-primary { background: #007aff; color: #fff; }
+    .btn-secondary { background: #f0f0f0; color: #333; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- 头部 -->
+    <div class="header">
+      <h1>🧠 AI 分析助手</h1>
+      <div class="actions">
+        <button class="icon-btn" id="clearBtn" title="清空对话">🗑️</button>
+        <button class="icon-btn" id="settingsBtn" title="设置">⚙️</button>
+      </div>
+    </div>
+
+    <!-- 聊天消息 -->
+    <div class="chat-container" id="chatContainer">
+      <div class="message assistant">
+        <div class="bubble">你好！选择技能（Skill）模板，输入问题或上传文件，我会帮你分析。</div>
+      </div>
+    </div>
+
+    <!-- 输入区域 -->
+    <div class="input-area">
+      <!-- 技能选择 -->
+      <div class="skill-selector">
+        <select id="skillSelect">
+          <option value="">💬 直接提问（无 Skill）</option>
+          <option value="请对以下内容进行总结，突出关键点和结论：">📝 文档总结</option>
+          <option value="请分析以下代码的功能、潜在问题和优化建议：">💻 代码分析</option>
+          <option value="请将以下文本翻译为英文：">🌐 翻译为英文</option>
+          <option value="custom">✏️ 自定义 Skill...</option>
+        </select>
+        <input type="text" id="customSkillInput" placeholder="输入自定义提示词模板..." style="display:none;" />
+      </div>
+
+      <!-- 已选文件展示 -->
+      <div id="fileTag" style="display:none; font-size:13px; align-items:center; gap:6px;">
+        <span class="uploaded-file-name" id="fileNameTag">📎 文件</span>
+        <button style="background:none; border:none; cursor:pointer; font-size:16px;" onclick="removeFile()">✕</button>
+      </div>
+
+      <!-- 输入与发送 -->
+      <div class="input-row">
+        <textarea id="userInput" rows="1" placeholder="输入你的问题或指令..."></textarea>
+        <label class="file-btn" title="上传文本文件">
+          📎
+          <input type="file" id="fileInput" style="display:none;" accept=".txt,.md,.csv,.json,.xml,.yaml,.yml,.log,.py,.js,.html,.css,.java,.cpp,.c,.h">
+        </label>
+        <button class="btn" id="sendBtn">➤</button>
+      </div>
+    </div>
+
+    <!-- 设置弹窗 -->
+    <div class="modal" id="settingsModal">
+      <div class="modal-content">
+        <h3>⚙️ API 设置</h3>
+        <label>DeepSeek API Key</label>
+        <input type="password" id="apiKeyInput" placeholder="sk-...">
+        <label>模型</label>
+        <input type="text" id="modelInput" value="deepseek-chat" placeholder="deepseek-chat">
+        <label>API 地址（默认 DeepSeek）</label>
+        <input type="text" id="baseUrlInput" value="https://api.deepseek.com/v1/chat/completions">
+        <div class="btn-row">
+          <button class="btn btn-secondary" id="closeSettingsBtn">取消</button>
+          <button class="btn btn-primary" id="saveSettingsBtn">保存</button>
+        </div>
+        <small style="color:#999;">Key 仅保存在你的浏览器中</small>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ---------- 状态管理 ----------
+    let messages = [];                     // 对话历史
+    let selectedFileContent = null;       // 上传的文本文件内容
+    let selectedFileName = '';
+
+    // DOM 元素
+    const chatContainer = document.getElementById('chatContainer');
+    const userInput = document.getElementById('userInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const skillSelect = document.getElementById('skillSelect');
+    const customSkillInput = document.getElementById('customSkillInput');
+    const fileTag = document.getElementById('fileTag');
+    const fileNameTag = document.getElementById('fileNameTag');
+    const fileInput = document.getElementById('fileInput');
+    const settingsBtn = document.getElementById('settingsBtn');
+    const settingsModal = document.getElementById('settingsModal');
+    const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+    const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+    const apiKeyInput = document.getElementById('apiKeyInput');
+    const modelInput = document.getElementById('modelInput');
+    const baseUrlInput = document.getElementById('baseUrlInput');
+    const clearBtn = document.getElementById('clearBtn');
+
+    // ---------- 本地存储 ----------
+    function loadSettings() {
+      apiKeyInput.value = localStorage.getItem('ds_api_key') || '';
+      modelInput.value = localStorage.getItem('ds_model') || 'deepseek-chat';
+      baseUrlInput.value = localStorage.getItem('ds_base_url') || 'https://api.deepseek.com/v1/chat/completions';
+    }
+    function saveSettings() {
+      localStorage.setItem('ds_api_key', apiKeyInput.value.trim());
+      localStorage.setItem('ds_model', modelInput.value.trim());
+      localStorage.setItem('ds_base_url', baseUrlInput.value.trim());
+    }
+    loadSettings();
+
+    // ---------- 设置弹窗 ----------
+    settingsBtn.addEventListener('click', () => settingsModal.classList.add('active'));
+    closeSettingsBtn.addEventListener('click', () => settingsModal.classList.remove('active'));
+    saveSettingsBtn.addEventListener('click', () => {
+      saveSettings();
+      settingsModal.classList.remove('active');
+      addAssistantMessage('✅ 设置已保存。');
+    });
+    window.addEventListener('click', (e) => {
+      if (e.target === settingsModal) settingsModal.classList.remove('active');
+    });
+
+    // ---------- Skill 选择逻辑 ----------
+    skillSelect.addEventListener('change', () => {
+      if (skillSelect.value === 'custom') {
+        customSkillInput.style.display = 'inline-block';
+        customSkillInput.focus();
+      } else {
+        customSkillInput.style.display = 'none';
+      }
+    });
+
+    // 获取当前技能模板文本
+    function getSkillTemplate() {
+      if (skillSelect.value === 'custom') {
+        return customSkillInput.value.trim();
+      }
+      return skillSelect.value;
+    }
+
+    // ---------- 文件上传 ----------
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      selectedFileName = file.name;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        selectedFileContent = event.target.result;
+        fileNameTag.textContent = `📎 ${selectedFileName}`;
+        fileTag.style.display = 'flex';
+      };
+      reader.onerror = () => {
+        alert('文件读取失败，请重试');
+        removeFile();
+      };
+      reader.readAsText(file, 'UTF-8'); // 尝试以文本读取
+    });
+
+    function removeFile() {
+      selectedFileContent = null;
+      selectedFileName = '';
+      fileInput.value = '';
+      fileTag.style.display = 'none';
+    }
+
+    // ---------- 消息渲染 ----------
+    function addMessage(role, content, fileName = null) {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `message ${role}`;
+      
+      let bubbleHtml = '';
+      if (role === 'assistant') {
+        // 使用 marked 渲染 Markdown
+        bubbleHtml = marked.parse(content);
+      } else {
+        bubbleHtml = escapeHtml(content);
+        if (fileName) {
+          bubbleHtml += `<div class="file-attach">📎 ${escapeHtml(fileName)}</div>`;
+        }
+      }
+      
+      msgDiv.innerHTML = `<div class="bubble">${bubbleHtml}</div>`;
+      chatContainer.appendChild(msgDiv);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function addAssistantMessage(content) {
+      addMessage('assistant', content);
+    }
+
+    function addUserMessage(text, fileName = null) {
+      addMessage('user', text, fileName);
+    }
+
+    function escapeHtml(text) {
+      return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // ---------- 清空对话 ----------
+    clearBtn.addEventListener('click', () => {
+      if (confirm('确定清空所有对话吗？')) {
+        messages = [];
+        chatContainer.innerHTML = '';
+        addAssistantMessage('对话已清空，有什么可以帮你？');
+      }
+    });
+
+    // ---------- 发送消息 ----------
+    sendBtn.addEventListener('click', sendMessage);
+    userInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    async function sendMessage() {
+      const userText = userInput.value.trim();
+      const skillTemplate = getSkillTemplate();
+      const hasFile = selectedFileContent !== null;
+
+      if (!userText && !hasFile) {
+        alert('请输入内容或上传文件');
+        return;
+      }
+
+      // 构建用户完整内容（用于展示和发送）
+      let displayText = userText || '(已上传文件)';
+      let fullUserContent = userText;
+
+      // 如果有 Skill 模板，前置
+      if (skillTemplate) {
+        fullUserContent = skillTemplate + '\n\n' + fullUserContent;
+      }
+      // 如果有文件内容，追加
+      if (hasFile) {
+        fullUserContent += '\n\n【上传文件内容】\n' + selectedFileContent;
+      }
+
+      // 显示用户消息
+      addUserMessage(displayText, selectedFileName);
+      
+      // 添加到对话历史
+      messages.push({ role: 'user', content: fullUserContent });
+
+      // 清空输入
+      userInput.value = '';
+      removeFile();
+
+      // 检查 API Key
+      const apiKey = localStorage.getItem('ds_api_key');
+      if (!apiKey) {
+        addAssistantMessage('⚠️ 请先在右上角设置中填写 DeepSeek API Key。');
+        return;
+      }
+
+      // 显示加载状态
+      const loadingMsg = document.createElement('div');
+      loadingMsg.className = 'message assistant';
+      loadingMsg.innerHTML = '<div class="bubble">思考中...</div>';
+      chatContainer.appendChild(loadingMsg);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+
+      try {
+        const baseUrl = localStorage.getItem('ds_base_url') || 'https://api.deepseek.com/v1/chat/completions';
+        const model = localStorage.getItem('ds_model') || 'deepseek-chat';
+        
+        const response = await fetch(baseUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model: model,
+            messages: [
+              { role: 'system', content: '你是专业、智能的助手，会用 Markdown 格式清晰回复。' },
+              ...messages
+            ],
+            temperature: 0.7,
+            max_tokens: 4096
+          })
+        });
+
+        const data = await response.json();
+        // 移除加载消息
+        loadingMsg.remove();
+
+        if (data.choices && data.choices[0].message) {
+          const assistantContent = data.choices[0].message.content;
+          messages.push({ role: 'assistant', content: assistantContent });
+          addAssistantMessage(assistantContent);
+        } else {
+          throw new Error(data.error?.message || '未知错误');
+        }
+      } catch (error) {
+        loadingMsg.remove();
+        addAssistantMessage(`❌ 请求失败：${error.message}`);
+        // 移除刚才添加的user消息（回滚）
+        messages.pop();
+      }
+    }
+
+    // 自动调整文本框高度
+    userInput.addEventListener('input', () => {
+      userInput.style.height = 'auto';
+      userInput.style.height = userInput.scrollHeight + 'px';
+    });
+  </script>
+</body>
+</html>
