@@ -299,6 +299,15 @@
     .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .send-btn:active:not(:disabled) { transform: scale(0.95); }
 
+    /* Gemini ✨ 动画 */
+    @keyframes sparklePulse {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.3); opacity: 0.7; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .enhancing { animation: sparklePulse 1s infinite; pointer-events: none; }
+    .tool-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
     /* 弹窗通用 */
     .modal {
       display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -321,7 +330,7 @@
     
     .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
     .form-group label { font-size: 13px; font-weight: 600; color: var(--text-main); }
-    .form-control { padding: 10px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 14px; background: #fafafa; }
+    .form-control { padding: 10px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 14px; background: #fafafa; width: 100%; }
     .form-control:focus { outline: none; border-color: #999; background: #fff; }
     
     .provider-tabs { display: flex; gap: 8px; margin-bottom: 16px; background: #f3f4f6; padding: 4px; border-radius: var(--radius-md); }
@@ -332,6 +341,17 @@
     .btn { padding: 10px 20px; border-radius: var(--radius-sm); border: none; font-size: 14px; font-weight: 500; cursor: pointer; }
     .btn-primary { background: var(--primary-color); color: #fff; }
     .btn-secondary { background: #f3f4f6; color: var(--text-main); }
+
+    /* 技能库列表样式 */
+    .skill-list { display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto; padding-right: 4px; margin: 12px 0; }
+    .skill-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px; background: #f9fafb; border-radius: var(--radius-sm); border: 1px solid var(--border-color); transition: all 0.2s; }
+    .skill-item.active { border-color: #000; background: #f3f4f6; }
+    .skill-item input[type="checkbox"] { margin-top: 4px; accent-color: #000; width: 16px; height: 16px; cursor: pointer; }
+    .skill-info { flex: 1; overflow: hidden; }
+    .skill-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; color: var(--text-main); }
+    .skill-desc { font-size: 12px; color: var(--text-secondary); word-break: break-all; }
+    .del-btn { background: none; border: none; color: var(--danger-color); cursor: pointer; padding: 4px; opacity: 0.6; display: flex; align-items: center; justify-content: center;}
+    .del-btn:hover { opacity: 1; background: rgba(239, 68, 68, 0.1); border-radius: 50%; }
 
     /* 自定义滚动条 */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -416,6 +436,8 @@
             <i data-lucide="blocks" width="20" height="20"></i>
           </button>
           
+          <button class="tool-btn" id="enhancePromptBtn" title="✨ 使用 Gemini 智能润色提示词" disabled>✨</button>
+          
           <textarea id="userInput" rows="1" placeholder="发送消息 (Shift+Enter 换行)..."></textarea>
           
           <button class="send-btn" id="sendBtn" disabled>
@@ -450,9 +472,48 @@
       </div>
     </div>
 
+    <!-- 技能预设弹窗 -->
+    <div class="modal" id="skillModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3><i data-lucide="blocks" width="20" height="20"></i> 技能预设库</h3>
+          <button class="tool-btn" id="closeSkillModal" style="margin:0"><i data-lucide="x" width="20" height="20"></i></button>
+        </div>
+        
+        <p style="font-size: 13px; color: var(--text-secondary);">勾选需要的 Prompt，系统会自动将其作为前置指令附加到你的消息中。</p>
+        
+        <div class="skill-list" id="skillListContainer">
+          <!-- 动态渲染 -->
+        </div>
+        
+        <div class="form-group">
+          <label>添加新技能</label>
+          <input type="text" class="form-control" id="newSkillName" placeholder="技能名称，如：翻译专家" style="margin-bottom: 8px;">
+          <textarea class="form-control" id="newSkillContent" placeholder="输入 Prompt 模板，如：请将以下内容翻译为英文..." style="min-height: 60px; resize: vertical;"></textarea>
+        </div>
+        
+        <div class="btn-row">
+          <button class="btn btn-primary" id="addSkillBtn">添加新技能</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <script>
+    // ===== 预设模型库 =====
+    const PREDEFINED_MODELS = {
+      mimo: {
+        text: ['mimo-v2.5', 'mimo-v2-omni', 'mimo-v2-flash', 'mimo-chat'],
+        vision: ['mimo-v2.5', 'mimo-v2-omni', 'mimo-vision']
+      },
+      deepseek: {
+        text: ['deepseek-chat', 'deepseek-reasoner', 'deepseek-coder'],
+        vision: []
+      },
+      custom: { text: [], vision: [] }
+    };
+
     // ===== 核心状态管理 =====
     const STATE = {
       sessions: [], // { id, title, messages: [{role, content, imgBase64, reasoning}], updatedAt }
@@ -464,15 +525,15 @@
         providers: {
           mimo: {
             apiKey: '',
-            baseUrl: 'https://mimo.mi.com/v1', // 假设的默认地址
-            model: 'mimo-chat',
-            visionModel: 'mimo-vision' // 上传图片时使用的模型
+            baseUrl: 'https://mimo.mi.com/v1',
+            model: 'mimo-v2.5',
+            visionModel: 'mimo-v2-omni'
           },
           deepseek: {
             apiKey: '',
             baseUrl: 'https://api.deepseek.com/v1/chat/completions',
             model: 'deepseek-chat',
-            visionModel: '' // DS暂无视觉模型，留空提示不支持
+            visionModel: ''
           },
           custom: {
             apiKey: '',
@@ -482,7 +543,9 @@
           }
         }
       },
-      pendingFile: { type: null, data: null, name: null } // 当前暂存的附件
+      pendingFile: { type: null, data: null, name: null },
+      skills: [],
+      activeSkillIds: []
     };
 
     // ===== DOM 元素 =====
@@ -502,6 +565,7 @@
       chatInner: document.getElementById('chatInner'),
       
       userInput: document.getElementById('userInput'),
+      enhancePromptBtn: document.getElementById('enhancePromptBtn'),
       sendBtn: document.getElementById('sendBtn'),
       fileInput: document.getElementById('fileInput'),
       attachmentPreview: document.getElementById('attachmentPreview'),
@@ -511,7 +575,15 @@
       closeSettingsModal: document.getElementById('closeSettingsModal'),
       providerTabs: document.getElementById('providerTabs'),
       settingsForm: document.getElementById('settingsForm'),
-      saveSettingsBtn: document.getElementById('saveSettingsBtn')
+      saveSettingsBtn: document.getElementById('saveSettingsBtn'),
+      
+      skillBtn: document.getElementById('skillBtn'),
+      skillModal: document.getElementById('skillModal'),
+      closeSkillModal: document.getElementById('closeSkillModal'),
+      skillListContainer: document.getElementById('skillListContainer'),
+      newSkillName: document.getElementById('newSkillName'),
+      newSkillContent: document.getElementById('newSkillContent'),
+      addSkillBtn: document.getElementById('addSkillBtn')
     };
 
     // ===== 初始化与数据持久化 =====
@@ -532,14 +604,27 @@
       
       const savedSessions = localStorage.getItem('pro_ai_sessions');
       if (savedSessions) STATE.sessions = JSON.parse(savedSessions);
+      
+      const savedSkills = localStorage.getItem('pro_ai_skills');
+      if (savedSkills) STATE.skills = JSON.parse(savedSkills);
+      else {
+        STATE.skills = [
+          { id: '1', name: '文档总结', content: '请对以下内容进行总结，提取核心观点，并用 Markdown 列表呈现：' },
+          { id: '2', name: '代码审查', content: '请作为资深工程师分析以下代码。指出潜在 Bug、性能问题，并提供优化后的代码示例：' },
+          { id: '3', name: '中英互译', content: '请充当专业翻译。如果以下内容是中文，翻译为地道英文；如果是英文，翻译为流畅的中文：' }
+        ];
+        localStorage.setItem('pro_ai_skills', JSON.stringify(STATE.skills));
+      }
+      
+      const savedActiveSkills = localStorage.getItem('pro_ai_active_skills');
+      if (savedActiveSkills) STATE.activeSkillIds = JSON.parse(savedActiveSkills);
     }
 
     function saveData() {
       localStorage.setItem('pro_ai_settings', JSON.stringify(STATE.settings));
-      // 限制保存的会话数量和消息长度，防止超过 localStorage 5MB 限制
       const sessionsToSave = STATE.sessions.slice(0, 30).map(s => ({
         ...s,
-        messages: s.messages.slice(-50) // 保留最近50条
+        messages: s.messages.slice(-50)
       }));
       try {
         localStorage.setItem('pro_ai_sessions', JSON.stringify(sessionsToSave));
@@ -549,13 +634,8 @@
     }
 
     // ===== UI 与 侧边栏控制 =====
-    function toggleSidebar() {
-      DOM.sidebar.classList.toggle('open');
-    }
-
-    function closeSidebar() {
-      DOM.sidebar.classList.remove('open');
-    }
+    function toggleSidebar() { DOM.sidebar.classList.toggle('open'); }
+    function closeSidebar() { DOM.sidebar.classList.remove('open'); }
 
     // ===== 会话管理 =====
     function generateId() { return Date.now().toString() + Math.random().toString(36).substr(2, 5); }
@@ -596,7 +676,6 @@
       const text = filterText.toLowerCase();
       
       STATE.sessions.forEach(session => {
-        // 搜索过滤：根据标题或消息内容匹配
         let match = session.title.toLowerCase().includes(text);
         if (!match && text) {
           match = session.messages.some(m => m.content && m.content.toLowerCase().includes(text));
@@ -680,7 +759,6 @@
       const div = document.createElement('div');
       div.className = 'message assistant';
       
-      // 构建结构：可能包含思考块和内容块
       const reasoningBox = document.createElement('details');
       reasoningBox.className = 'reasoning-box';
       reasoningBox.style.display = 'none';
@@ -714,7 +792,7 @@
           if (isReasoning) {
             isReasoning = false;
             reasoningBox.querySelector('.reasoning-content').classList.remove('cursor-blink');
-            reasoningBox.open = false; // 折叠思考过程
+            reasoningBox.open = false;
           }
           fullContent += text;
           contentBubble.innerHTML = marked.parse(fullContent);
@@ -750,7 +828,6 @@
           const base64 = await fileToBase64(file);
           STATE.pendingFile = { type: 'image', data: base64, name: file.name };
         } else {
-          // 处理文本文件
           const text = await file.text();
           STATE.pendingFile = { type: 'text', data: text, name: file.name };
         }
@@ -793,6 +870,50 @@
       });
     }
 
+    // ===== 技能预设渲染 =====
+    function renderSkills() {
+      DOM.skillListContainer.innerHTML = '';
+      STATE.skills.forEach(skill => {
+        const isActive = STATE.activeSkillIds.includes(skill.id);
+        const div = document.createElement('div');
+        div.className = `skill-item ${isActive ? 'active' : ''}`;
+        div.innerHTML = `
+          <input type="checkbox" ${isActive ? 'checked' : ''} data-id="${skill.id}">
+          <div class="skill-info">
+            <div class="skill-title">${escapeHtml(skill.name)}</div>
+            <div class="skill-desc" title="${escapeHtml(skill.content)}">${escapeHtml(skill.content)}</div>
+          </div>
+          <button class="del-btn" style="width:28px;height:28px" data-id="${skill.id}"><i data-lucide="trash-2" width="16" height="16"></i></button>
+        `;
+        DOM.skillListContainer.appendChild(div);
+      });
+      lucide.createIcons({ root: DOM.skillListContainer });
+
+      DOM.skillListContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.onchange = (e) => {
+          const id = e.target.dataset.id;
+          if (e.target.checked) {
+            if (!STATE.activeSkillIds.includes(id)) STATE.activeSkillIds.push(id);
+          } else {
+            STATE.activeSkillIds = STATE.activeSkillIds.filter(i => i !== id);
+          }
+          localStorage.setItem('pro_ai_active_skills', JSON.stringify(STATE.activeSkillIds));
+          renderSkills();
+        };
+      });
+
+      DOM.skillListContainer.querySelectorAll('.del-btn').forEach(btn => {
+        btn.onclick = (e) => {
+          const id = e.currentTarget.dataset.id;
+          STATE.skills = STATE.skills.filter(s => s.id !== id);
+          STATE.activeSkillIds = STATE.activeSkillIds.filter(i => i !== id);
+          localStorage.setItem('pro_ai_skills', JSON.stringify(STATE.skills));
+          localStorage.setItem('pro_ai_active_skills', JSON.stringify(STATE.activeSkillIds));
+          renderSkills();
+        };
+      });
+    }
+
     // ===== 核心 API 请求逻辑 =====
     async function sendMessage() {
       const text = DOM.userInput.value.trim();
@@ -802,7 +923,6 @@
       const session = STATE.sessions.find(s => s.id === STATE.currentSessionId);
       if (!session) return;
 
-      // 1. 构建 UI 并保存用户消息
       let userMsgContent = text;
       let imgBase64 = null;
 
@@ -814,24 +934,28 @@
         }
       }
 
+      // 附加活跃的技能
+      let skillContentStr = STATE.activeSkillIds.map(id => STATE.skills.find(s => s.id === id)).filter(Boolean).map(s => s.content).join('\n\n');
+      if (skillContentStr) {
+        userMsgContent = `【系统指令/预设技能要求】\n${skillContentStr}\n\n${userMsgContent}`;
+      }
+
       appendUserMessageUI(userMsgContent, imgBase64);
       session.messages.push({ role: 'user', content: userMsgContent, imgBase64: imgBase64 });
       if (session.messages.length === 1 && text) updateSessionTitle(session.id, text);
       
-      // 清理输入区
       DOM.userInput.value = '';
       DOM.userInput.style.height = '40px';
       STATE.pendingFile = { type: null, data: null, name: null };
       renderAttachmentPreview();
       checkInputState();
       
-      // 2. 准备 API 请求参数
       const providerKey = STATE.settings.activeProvider;
       const config = STATE.settings.providers[providerKey];
       
       if (!config.apiKey) {
         appendAssistantMessageUI(`⚠️ 请先在设置中配置 **${providerKey.toUpperCase()}** 的 API Key。`);
-        session.messages.pop(); // 回滚
+        session.messages.pop();
         return;
       }
 
@@ -839,11 +963,8 @@
       const streamUI = createStreamingUI();
 
       try {
-        // 构建符合 OpenAI / MiMo 规范的 messages 数组
-        // 取最后 10 条上下文
         const apiMessages = session.messages.slice(-10).map(m => {
           if (m.role === 'user' && m.imgBase64) {
-            // 多模态格式
             return {
               role: 'user',
               content: [
@@ -855,11 +976,9 @@
           return { role: m.role, content: m.content };
         });
 
-        // 根据开关确定模型
         let targetModel = config.model;
         if (imgBase64 && config.visionModel) targetModel = config.visionModel;
         
-        // 构造请求体
         let payload = {
           model: targetModel,
           messages: [
@@ -870,19 +989,14 @@
           temperature: 0.6
         };
 
-        // 注入高级功能 (依据大模型通用规范或推测的 MiMo 规范)
         if (STATE.settings.enableSearch) {
-          // 通用联网注入 (Tool Calling 格式)
           payload.tools = [{ type: "web_search", web_search: { enable: true } }];
         }
         if (STATE.settings.enableThink) {
-          // 深度思考通常需要开启特定参数，或切换模型名（此处假设通过模型名后缀或特定字段控制，这里加入通用字段）
           payload.reasoning_effort = "high"; 
-          // 有些如 deepseek 是直接选 deepseek-reasoner 模型，如果是 DS 且开启了思考：
           if (providerKey === 'deepseek') payload.model = 'deepseek-reasoner';
         }
 
-        // URL 兼容处理，如果没有 /chat/completions 后缀则补全
         let url = config.baseUrl;
         if (!url.endsWith('/chat/completions')) url = url.replace(/\/+$/, '') + '/chat/completions';
 
@@ -931,12 +1045,9 @@
                   const delta = parsed.choices?.[0]?.delta;
                   if (!delta) continue;
 
-                  // 解析思考过程 (DeepSeek / MiMo 的 reasoning_content)
                   if (delta.reasoning_content) {
                     streamUI.updateReasoning(delta.reasoning_content);
-                  } 
-                  // 解析标准内容
-                  else if (delta.content) {
+                  } else if (delta.content) {
                     streamUI.updateContent(delta.content);
                   }
                 } catch(e) {}
@@ -952,7 +1063,7 @@
 
       } catch (err) {
         streamUI.showError(err.message);
-        session.messages.pop(); // 回滚
+        session.messages.pop(); 
       } finally {
         checkInputState();
       }
@@ -961,17 +1072,11 @@
 
     // ===== 交互与事件绑定 =====
     function bindEvents() {
-      // 侧边栏与移动端菜单
       DOM.menuBtn.onclick = toggleSidebar;
       DOM.sidebarOverlay.onclick = closeSidebar;
-
-      // 新建对话
       DOM.newChatBtn.onclick = createNewSession;
-
-      // 搜索过滤
       DOM.searchInput.addEventListener('input', (e) => renderSessions(e.target.value));
 
-      // 输入框自适应高度与发送状态
       DOM.userInput.addEventListener('input', () => {
         DOM.userInput.style.height = '40px';
         DOM.userInput.style.height = Math.min(DOM.userInput.scrollHeight, 150) + 'px';
@@ -984,8 +1089,8 @@
         }
       });
       DOM.sendBtn.onclick = sendMessage;
+      if (DOM.enhancePromptBtn) DOM.enhancePromptBtn.onclick = handleEnhancePrompt;
 
-      // 顶部功能开关
       DOM.toggleSearch.onclick = () => {
         STATE.settings.enableSearch = !STATE.settings.enableSearch;
         updateHeaderUI();
@@ -997,7 +1102,6 @@
         saveData();
       };
 
-      // 设置面板
       DOM.settingsBtn.onclick = () => {
         renderSettingsForm(STATE.settings.activeProvider);
         DOM.settingsModal.classList.add('active');
@@ -1005,7 +1109,29 @@
       };
       DOM.closeSettingsModal.onclick = () => DOM.settingsModal.classList.remove('active');
       
-      // 切换服务商 Tab
+      DOM.skillBtn.onclick = () => {
+        renderSkills();
+        DOM.skillModal.classList.add('active');
+      };
+      DOM.closeSkillModal.onclick = () => DOM.skillModal.classList.remove('active');
+      
+      DOM.addSkillBtn.onclick = () => {
+        const name = DOM.newSkillName.value.trim();
+        const content = DOM.newSkillContent.value.trim();
+        if (!content) return;
+        STATE.skills.push({ id: Date.now().toString(), name: name || '新技能', content });
+        localStorage.setItem('pro_ai_skills', JSON.stringify(STATE.skills));
+        DOM.newSkillName.value = '';
+        DOM.newSkillContent.value = '';
+        renderSkills();
+      };
+
+      // 点击遮罩层关闭任何弹窗
+      window.addEventListener('click', (e) => {
+        if (e.target === DOM.settingsModal) DOM.settingsModal.classList.remove('active');
+        if (e.target === DOM.skillModal) DOM.skillModal.classList.remove('active');
+      });
+      
       DOM.providerTabs.addEventListener('click', (e) => {
         if (e.target.classList.contains('provider-tab')) {
           const provider = e.target.dataset.provider;
@@ -1013,14 +1139,23 @@
         }
       });
 
-      // 保存设置
       DOM.saveSettingsBtn.onclick = () => {
         const p = document.querySelector('.provider-tab.active').dataset.provider;
         STATE.settings.activeProvider = p;
+        
         STATE.settings.providers[p].apiKey = document.getElementById('set-apikey').value.trim();
         STATE.settings.providers[p].baseUrl = document.getElementById('set-baseurl').value.trim();
-        STATE.settings.providers[p].model = document.getElementById('set-model').value.trim();
-        STATE.settings.providers[p].visionModel = document.getElementById('set-vision').value.trim();
+        
+        // 获取模型名称 (如果是自定义选项，则读取手动输入的值)
+        const textSelect = document.getElementById('set-model-select');
+        const textInput = document.getElementById('set-model-custom');
+        STATE.settings.providers[p].model = (textSelect && textSelect.value === 'custom') ? textInput.value.trim() : textSelect.value;
+        
+        const visionSelect = document.getElementById('set-vision-select');
+        const visionInput = document.getElementById('set-vision-custom');
+        if (visionSelect) {
+          STATE.settings.providers[p].visionModel = (visionSelect.value === 'custom') ? visionInput.value.trim() : visionSelect.value;
+        }
         
         saveData();
         updateHeaderUI();
@@ -1032,27 +1167,100 @@
       const text = DOM.userInput.value.trim();
       const hasFile = STATE.pendingFile.data !== null;
       DOM.sendBtn.disabled = !(text || hasFile);
+      if (DOM.enhancePromptBtn) DOM.enhancePromptBtn.disabled = !text;
+    }
+
+    // ===== Gemini API 提示词润色功能 =====
+    const geminiApiKey = ""; // 运行时环境自动注入
+
+    async function fetchWithExponentialBackoff(url, options, maxRetries = 5) {
+      const delays = [1000, 2000, 4000, 8000, 16000];
+      for (let i = 0; i < maxRetries; i++) {
+        try {
+          const res = await fetch(url, options);
+          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+          return await res.json();
+        } catch (err) {
+          if (i === maxRetries - 1) throw err;
+          await new Promise(resolve => setTimeout(resolve, delays[i]));
+        }
+      }
+    }
+
+    async function handleEnhancePrompt() {
+      const text = DOM.userInput.value.trim();
+      if (!text) return;
+
+      DOM.enhancePromptBtn.classList.add('enhancing');
+      DOM.userInput.disabled = true;
+
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${geminiApiKey}`;
+        const payload = {
+          contents: [{ parts: [{ text: `你是一个专业的提示词（Prompt）优化专家。请将以下用户输入的简短或随意的文本，扩写、润色为结构清晰、表达专业、意图明确的高质量 AI 提示词。要求：直接返回优化后的结果，绝不要包含任何解释、前言或客套话。\n\n原输入：\n${text}` }] }]
+        };
+
+        const result = await fetchWithExponentialBackoff(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const enhancedText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (enhancedText) {
+          DOM.userInput.value = enhancedText.trim();
+          // 重新计算输入框高度
+          DOM.userInput.style.height = '40px';
+          DOM.userInput.style.height = Math.min(DOM.userInput.scrollHeight, 150) + 'px';
+        }
+      } catch (err) {
+        console.error("Gemini 润色失败:", err);
+      } finally {
+        DOM.enhancePromptBtn.classList.remove('enhancing');
+        DOM.userInput.disabled = false;
+        DOM.userInput.focus();
+        checkInputState();
+      }
     }
 
     function updateHeaderUI() {
-      // 开关状态
       DOM.toggleSearch.classList.toggle('active', STATE.settings.enableSearch);
       DOM.toggleThink.classList.toggle('active', STATE.settings.enableThink);
-      
-      // 服务商 Badge
       const nameMap = { mimo: 'MiMo', deepseek: 'DeepSeek', custom: 'Custom' };
       DOM.providerNameText.textContent = nameMap[STATE.settings.activeProvider] || 'AI';
     }
 
+    // ===== 渲染设置表单 (支持下拉与自定义) =====
     function renderSettingsForm(provider) {
-      // 切换 Tab 样式
       document.querySelectorAll('.provider-tab').forEach(t => {
         t.classList.toggle('active', t.dataset.provider === provider);
       });
 
       const config = STATE.settings.providers[provider];
       
-      // 生成表单 HTML
+      // 生成文本模型的选项
+      const textOptions = PREDEFINED_MODELS[provider]?.text || [];
+      const isTextCustom = !textOptions.includes(config.model) && config.model !== '';
+      let textSelectHtml = `<select id="set-model-select" class="form-control" onchange="document.getElementById('set-model-custom').style.display = this.value === 'custom' ? 'block' : 'none'">`;
+      if(textOptions.length > 0) {
+        textOptions.forEach(opt => {
+          textSelectHtml += `<option value="${opt}" ${(!isTextCustom && config.model === opt) ? 'selected' : ''}>${opt}</option>`;
+        });
+      }
+      textSelectHtml += `<option value="custom" ${isTextCustom || textOptions.length === 0 ? 'selected' : ''}>自定义输入 (Custom)</option></select>`;
+      
+      // 生成视觉模型的选项
+      const visionOptions = PREDEFINED_MODELS[provider]?.vision || [];
+      const isVisionCustom = !visionOptions.includes(config.visionModel) && config.visionModel !== '';
+      let visionSelectHtml = `<select id="set-vision-select" class="form-control" onchange="document.getElementById('set-vision-custom').style.display = this.value === 'custom' ? 'block' : 'none'">`;
+      visionSelectHtml += `<option value="">-- 不支持或留空 --</option>`;
+      if(visionOptions.length > 0) {
+        visionOptions.forEach(opt => {
+          visionSelectHtml += `<option value="${opt}" ${(!isVisionCustom && config.visionModel === opt) ? 'selected' : ''}>${opt}</option>`;
+        });
+      }
+      visionSelectHtml += `<option value="custom" ${isVisionCustom && config.visionModel !== '' ? 'selected' : ''}>自定义输入 (Custom)</option></select>`;
+
       let html = `
         <div class="form-group">
           <label>API Key</label>
@@ -1064,16 +1272,18 @@
         </div>
         <div class="form-group">
           <label>文本模型 (Text Model)</label>
-          <input type="text" id="set-model" class="form-control" value="${config.model}">
+          ${textSelectHtml}
+          <input type="text" id="set-model-custom" class="form-control" style="display: ${isTextCustom || textOptions.length === 0 ? 'block' : 'none'}; margin-top: 6px;" value="${isTextCustom ? config.model : ''}" placeholder="请输入自定义模型名称">
         </div>
         <div class="form-group">
           <label>视觉模型 (Vision Model, 用于读图)</label>
-          <input type="text" id="set-vision" class="form-control" value="${config.visionModel}" placeholder="留空表示不支持">
+          ${visionSelectHtml}
+          <input type="text" id="set-vision-custom" class="form-control" style="display: ${isVisionCustom ? 'block' : 'none'}; margin-top: 6px;" value="${isVisionCustom ? config.visionModel : ''}" placeholder="请输入自定义视觉模型名称">
         </div>
       `;
       
       if (provider === 'mimo') {
-        html += `<p style="font-size:12px;color:var(--text-secondary);margin-top:8px;">提示：MiMo 支持图片理解、联网及深度思考。请确保在文档中获取正确的 Base URL 及模型名。</p>`;
+        html += `<p style="font-size:12px;color:var(--text-secondary);margin-top:8px;">提示：MiMo 支持多模型调度。你可以下拉选择 <b>mimo-v2.5</b> 或全模态的 <b>mimo-v2-omni</b> 等。</p>`;
       }
       
       DOM.settingsForm.innerHTML = html;
