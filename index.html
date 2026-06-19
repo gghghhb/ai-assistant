@@ -427,10 +427,10 @@
         <div class="attachment-preview" id="attachmentPreview"></div>
         
         <div class="input-box">
-          <label class="tool-btn" title="上传图片或文件">
-            <i data-lucide="image" width="20" height="20"></i>
-            <!-- 支持图片等 -->
-            <input type="file" id="fileInput" accept="image/*,.txt,.md,.json">
+          <label class="tool-btn" title="选择上传图片或文档">
+            <i data-lucide="paperclip" width="20" height="20"></i>
+            <!-- 为了兼容夸克等国产手机浏览器，将 accept 属性改为宽容度极高的通配符，由底层 JS 自主识别文件后缀 -->
+            <input type="file" id="fileInput" accept="*/*">
           </label>
           <button class="tool-btn" id="skillBtn" title="技能预设">
             <i data-lucide="blocks" width="20" height="20"></i>
@@ -516,7 +516,7 @@
 
     // ===== 核心状态管理 =====
     const STATE = {
-      sessions: [], // { id, title, messages: [{role, content, imgBase64, reasoning}], updatedAt }
+      sessions: [], // { id, title, messages: [{role, content, file, skillPrefix, reasoning}], updatedAt }
       currentSessionId: null,
       settings: {
         activeProvider: 'mimo',
@@ -576,7 +576,7 @@
       providerTabs: document.getElementById('providerTabs'),
       settingsForm: document.getElementById('settingsForm'),
       saveSettingsBtn: document.getElementById('saveSettingsBtn'),
-      
+
       skillBtn: document.getElementById('skillBtn'),
       skillModal: document.getElementById('skillModal'),
       closeSkillModal: document.getElementById('closeSkillModal'),
@@ -604,7 +604,7 @@
       
       const savedSessions = localStorage.getItem('pro_ai_sessions');
       if (savedSessions) STATE.sessions = JSON.parse(savedSessions);
-      
+
       const savedSkills = localStorage.getItem('pro_ai_skills');
       if (savedSkills) STATE.skills = JSON.parse(savedSkills);
       else {
@@ -712,14 +712,13 @@
       if (!session || session.messages.length === 0) {
         const welcome = document.createElement('div');
         welcome.className = 'message assistant';
-        welcome.innerHTML = `<div class="bubble markdown-body"><p>你好！我是 AI 分析工作站。<br>你可以进行文本对话，或者点击左下角上传图片进行<strong>视觉分析</strong>。顶部支持切换<strong>联网搜索</strong>和<strong>深度思考</strong>能力。</p></div>`;
+        welcome.innerHTML = `<div class="bubble markdown-body"><p>你好！我是 AI 分析工作站。<br>你可以进行文本对话，或者点击左下角上传图片/文档进行<strong>智能分析</strong>。顶部支持切换<strong>联网搜索</strong>和<strong>深度思考</strong>能力。</p></div>`;
         DOM.chatInner.appendChild(welcome);
         return;
       }
 
       session.messages.forEach(msg => {
         if (msg.role === 'user') {
-          // 向下兼容旧的图片字段
           let fileObj = msg.file;
           if (!fileObj && msg.imgBase64) fileObj = { type: 'image', data: msg.imgBase64 };
           appendUserMessageUI(msg.content, fileObj);
@@ -838,17 +837,26 @@
       if (!file) return;
       
       try {
-        if (file.type.startsWith('image/')) {
+        const fileName = file.name.toLowerCase();
+        // 智能检测后缀（国产手机端浏览器 file.type 在挑选特定格式文件时非常不可靠，必须辅以扩展名双重保障）
+        const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(fileName);
+        const isText = file.type.startsWith('text/') || /\.(txt|md|json|csv|py|js|html|css|xml|yaml|yml|log|c|cpp|h|java)$/i.test(fileName);
+
+        if (isImage) {
           const base64 = await fileToBase64(file);
           STATE.pendingFile = { type: 'image', data: base64, name: file.name };
+        } else if (isText) {
+          const text = await file.text();
+          STATE.pendingFile = { type: 'text', data: text, name: file.name };
         } else {
+          // 如果是未知类型，默认尝试当作纯文本处理（兼容性最强）
           const text = await file.text();
           STATE.pendingFile = { type: 'text', data: text, name: file.name };
         }
         renderAttachmentPreview();
         checkInputState();
       } catch (err) {
-        alert("文件读取失败");
+        alert("文件读取失败: " + err.message);
       }
       DOM.fileInput.value = '';
     };
@@ -969,7 +977,7 @@
       try {
         const apiMessages = session.messages.slice(-10).map(m => {
           let mFile = m.file;
-          // 向下兼容
+          // 向下兼容旧格式
           if (!mFile && m.imgBase64) mFile = { type: 'image', data: m.imgBase64 };
 
           let finalContent = m.content || "";
@@ -1112,7 +1120,6 @@
         }
       });
       DOM.sendBtn.onclick = sendMessage;
-      if (DOM.enhancePromptBtn) DOM.enhancePromptBtn.onclick = handleEnhancePrompt;
 
       DOM.toggleSearch.onclick = () => {
         STATE.settings.enableSearch = !STATE.settings.enableSearch;
@@ -1131,29 +1138,6 @@
         if(window.innerWidth <= 768) closeSidebar();
       };
       DOM.closeSettingsModal.onclick = () => DOM.settingsModal.classList.remove('active');
-      
-      DOM.skillBtn.onclick = () => {
-        renderSkills();
-        DOM.skillModal.classList.add('active');
-      };
-      DOM.closeSkillModal.onclick = () => DOM.skillModal.classList.remove('active');
-      
-      DOM.addSkillBtn.onclick = () => {
-        const name = DOM.newSkillName.value.trim();
-        const content = DOM.newSkillContent.value.trim();
-        if (!content) return;
-        STATE.skills.push({ id: Date.now().toString(), name: name || '新技能', content });
-        localStorage.setItem('pro_ai_skills', JSON.stringify(STATE.skills));
-        DOM.newSkillName.value = '';
-        DOM.newSkillContent.value = '';
-        renderSkills();
-      };
-
-      // 点击遮罩层关闭任何弹窗
-      window.addEventListener('click', (e) => {
-        if (e.target === DOM.settingsModal) DOM.settingsModal.classList.remove('active');
-        if (e.target === DOM.skillModal) DOM.skillModal.classList.remove('active');
-      });
       
       DOM.providerTabs.addEventListener('click', (e) => {
         if (e.target.classList.contains('provider-tab')) {
@@ -1184,6 +1168,31 @@
         updateHeaderUI();
         DOM.settingsModal.classList.remove('active');
       };
+
+      DOM.skillBtn.onclick = () => {
+        renderSkills();
+        DOM.skillModal.classList.add('active');
+      };
+      DOM.closeSkillModal.onclick = () => DOM.skillModal.classList.remove('active');
+      
+      DOM.addSkillBtn.onclick = () => {
+        const name = DOM.newSkillName.value.trim();
+        const content = DOM.newSkillContent.value.trim();
+        if (!content) return;
+        STATE.skills.push({ id: Date.now().toString(), name: name || '新技能', content });
+        localStorage.setItem('pro_ai_skills', JSON.stringify(STATE.skills));
+        DOM.newSkillName.value = '';
+        DOM.newSkillContent.value = '';
+        renderSkills();
+      };
+
+      DOM.enhancePromptBtn.onclick = handleEnhancePrompt;
+
+      // 点击遮罩层关闭任何弹窗
+      window.addEventListener('click', (e) => {
+        if (e.target === DOM.settingsModal) DOM.settingsModal.classList.remove('active');
+        if (e.target === DOM.skillModal) DOM.skillModal.classList.remove('active');
+      });
     }
 
     function checkInputState() {
@@ -1191,6 +1200,13 @@
       const hasFile = STATE.pendingFile.data !== null;
       DOM.sendBtn.disabled = !(text || hasFile);
       if (DOM.enhancePromptBtn) DOM.enhancePromptBtn.disabled = !text;
+    }
+
+    function updateHeaderUI() {
+      DOM.toggleSearch.classList.toggle('active', STATE.settings.enableSearch);
+      DOM.toggleThink.classList.toggle('active', STATE.settings.enableThink);
+      const nameMap = { mimo: 'MiMo', deepseek: 'DeepSeek', custom: 'Custom' };
+      DOM.providerNameText.textContent = nameMap[STATE.settings.activeProvider] || 'AI';
     }
 
     // ===== 智能提示词润色功能 (调用当前模型) =====
@@ -1255,13 +1271,6 @@
         DOM.userInput.focus();
         checkInputState();
       }
-    }
-
-    function updateHeaderUI() {
-      DOM.toggleSearch.classList.toggle('active', STATE.settings.enableSearch);
-      DOM.toggleThink.classList.toggle('active', STATE.settings.enableThink);
-      const nameMap = { mimo: 'MiMo', deepseek: 'DeepSeek', custom: 'Custom' };
-      DOM.providerNameText.textContent = nameMap[STATE.settings.activeProvider] || 'AI';
     }
 
     // ===== 渲染设置表单 (支持下拉与自定义) =====
