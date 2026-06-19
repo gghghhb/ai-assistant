@@ -436,7 +436,7 @@
             <i data-lucide="blocks" width="20" height="20"></i>
           </button>
           
-          <button class="tool-btn" id="enhancePromptBtn" title="✨ 使用 Gemini 智能润色提示词" disabled>✨</button>
+          <button class="tool-btn" id="enhancePromptBtn" title="✨ 使用当前模型智能润色提示词" disabled>✨</button>
           
           <textarea id="userInput" rows="1" placeholder="发送消息 (Shift+Enter 换行)..."></textarea>
           
@@ -718,19 +718,33 @@
       }
 
       session.messages.forEach(msg => {
-        if (msg.role === 'user') appendUserMessageUI(msg.content, msg.imgBase64);
+        if (msg.role === 'user') {
+          // 向下兼容旧的图片字段
+          let fileObj = msg.file;
+          if (!fileObj && msg.imgBase64) fileObj = { type: 'image', data: msg.imgBase64 };
+          appendUserMessageUI(msg.content, fileObj);
+        }
         else appendAssistantMessageUI(msg.content, msg.reasoning);
       });
       scrollToBottom();
     }
 
-    function appendUserMessageUI(text, imgBase64 = null) {
+    function appendUserMessageUI(text, fileObj = null) {
       const div = document.createElement('div');
       div.className = 'message user';
       let html = `<div class="bubble">${escapeHtml(text)}</div>`;
-      if (imgBase64) html += `<img src="${imgBase64}" class="msg-image">`;
+      
+      if (fileObj) {
+        if (fileObj.type === 'image') {
+          html += `<img src="${fileObj.data}" class="msg-image">`;
+        } else if (fileObj.type === 'text') {
+          html += `<div style="margin-top: 6px; padding: 6px 10px; background: rgba(0,0,0,0.05); border-radius: 6px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; align-self: flex-end; color: var(--text-secondary); border: 1px solid var(--border-color);"><i data-lucide="file-text" width="14" height="14"></i> 📎 附件: ${escapeHtml(fileObj.name)}</div>`;
+        }
+      }
+      
       div.innerHTML = html;
       DOM.chatInner.appendChild(div);
+      lucide.createIcons({ root: div });
       scrollToBottom();
     }
 
@@ -923,25 +937,15 @@
       const session = STATE.sessions.find(s => s.id === STATE.currentSessionId);
       if (!session) return;
 
-      let userMsgContent = text;
-      let imgBase64 = null;
+      let userMsgContent = text || (hasAttachment ? '请分析附件内容。' : '');
+      let fileObj = hasAttachment ? { ...STATE.pendingFile } : null;
 
-      if (hasAttachment) {
-        if (STATE.pendingFile.type === 'text') {
-          userMsgContent = `【文件内容: ${STATE.pendingFile.name}】\n${STATE.pendingFile.data}\n\n${text}`;
-        } else if (STATE.pendingFile.type === 'image') {
-          imgBase64 = STATE.pendingFile.data;
-        }
-      }
-
-      // 附加活跃的技能
+      // 提取活跃的技能 (仅仅作为隐藏的后台数据保存，不混入 UI 显示的 userMsgContent 中)
       let skillContentStr = STATE.activeSkillIds.map(id => STATE.skills.find(s => s.id === id)).filter(Boolean).map(s => s.content).join('\n\n');
-      if (skillContentStr) {
-        userMsgContent = `【系统指令/预设技能要求】\n${skillContentStr}\n\n${userMsgContent}`;
-      }
 
-      appendUserMessageUI(userMsgContent, imgBase64);
-      session.messages.push({ role: 'user', content: userMsgContent, imgBase64: imgBase64 });
+      appendUserMessageUI(userMsgContent, fileObj);
+      // 保存到会话历史时，将 skill 作为一个隐藏字段 skillPrefix 存起来
+      session.messages.push({ role: 'user', content: userMsgContent, file: fileObj, skillPrefix: skillContentStr });
       if (session.messages.length === 1 && text) updateSessionTitle(session.id, text);
       
       DOM.userInput.value = '';
@@ -964,20 +968,39 @@
 
       try {
         const apiMessages = session.messages.slice(-10).map(m => {
-          if (m.role === 'user' && m.imgBase64) {
-            return {
-              role: 'user',
-              content: [
-                { type: "text", text: m.content || "请描述这张图片" },
-                { type: "image_url", image_url: { url: m.imgBase64 } }
-              ]
-            };
+          let mFile = m.file;
+          // 向下兼容
+          if (!mFile && m.imgBase64) mFile = { type: 'image', data: m.imgBase64 };
+
+          let finalContent = m.content || "";
+
+          // 如果该条消息包含隐藏的技能前缀，在发送给大模型前进行拼接
+          if (m.skillPrefix) {
+            finalContent = `【系统指令/预设技能要求】\n${m.skillPrefix}\n\n${finalContent}`;
           }
-          return { role: m.role, content: m.content };
+
+          if (m.role === 'user' && mFile) {
+            if (mFile.type === 'image') {
+              return {
+                role: 'user',
+                content: [
+                  { type: "text", text: finalContent || "请描述这张图片" },
+                  { type: "image_url", image_url: { url: mFile.data } }
+                ]
+              };
+            } else if (mFile.type === 'text') {
+              // 发送给大模型时，将文件内容与用户文本(以及技能前缀)拼接
+              return {
+                role: 'user',
+                content: `【文件附件：${mFile.name}】\n${mFile.data}\n\n${finalContent}`
+              };
+            }
+          }
+          return { role: m.role, content: finalContent };
         });
 
         let targetModel = config.model;
-        if (imgBase64 && config.visionModel) targetModel = config.visionModel;
+        if (fileObj && fileObj.type === 'image' && config.visionModel) targetModel = config.visionModel;
         
         let payload = {
           model: targetModel,
@@ -1170,51 +1193,62 @@
       if (DOM.enhancePromptBtn) DOM.enhancePromptBtn.disabled = !text;
     }
 
-    // ===== Gemini API 提示词润色功能 =====
-    const geminiApiKey = ""; // 运行时环境自动注入
-
-    async function fetchWithExponentialBackoff(url, options, maxRetries = 5) {
-      const delays = [1000, 2000, 4000, 8000, 16000];
-      for (let i = 0; i < maxRetries; i++) {
-        try {
-          const res = await fetch(url, options);
-          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-          return await res.json();
-        } catch (err) {
-          if (i === maxRetries - 1) throw err;
-          await new Promise(resolve => setTimeout(resolve, delays[i]));
-        }
-      }
-    }
-
+    // ===== 智能提示词润色功能 (调用当前模型) =====
     async function handleEnhancePrompt() {
       const text = DOM.userInput.value.trim();
       if (!text) return;
+
+      const providerKey = STATE.settings.activeProvider;
+      const config = STATE.settings.providers[providerKey];
+
+      if (!config.apiKey) {
+        alert(`请先在左下角设置中配置 ${providerKey.toUpperCase()} 的 API Key 才能使用润色功能。`);
+        return;
+      }
 
       DOM.enhancePromptBtn.classList.add('enhancing');
       DOM.userInput.disabled = true;
 
       try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${geminiApiKey}`;
+        let url = config.baseUrl;
+        if (!url.endsWith('/chat/completions')) url = url.replace(/\/+$/, '') + '/chat/completions';
+
         const payload = {
-          contents: [{ parts: [{ text: `你是一个专业的提示词（Prompt）优化专家。请将以下用户输入的简短或随意的文本，扩写、润色为结构清晰、表达专业、意图明确的高质量 AI 提示词。要求：直接返回优化后的结果，绝不要包含任何解释、前言或客套话。\n\n原输入：\n${text}` }] }]
+          model: config.model,
+          messages: [
+            { role: "system", content: "你是一个专业的提示词（Prompt）优化专家。请将用户输入的简短或随意的文本，扩写、润色为结构清晰、表达专业、意图明确的高质量 AI 提示词。要求：直接返回优化后的结果文本，绝不要包含任何解释、前言、总结或客套话。" },
+            { role: "user", content: text }
+          ],
+          stream: false, // 优化提示词使用非流式，一次性返回
+          temperature: 0.6
         };
 
-        const result = await fetchWithExponentialBackoff(url, {
+        const response = await fetch(url, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${config.apiKey}`
+          },
           body: JSON.stringify(payload)
         });
 
-        const enhancedText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(`HTTP ${response.status}: ${errText}`);
+        }
+
+        const data = await response.json();
+        const enhancedText = data.choices?.[0]?.message?.content?.trim();
+
         if (enhancedText) {
-          DOM.userInput.value = enhancedText.trim();
+          DOM.userInput.value = enhancedText;
           // 重新计算输入框高度
           DOM.userInput.style.height = '40px';
           DOM.userInput.style.height = Math.min(DOM.userInput.scrollHeight, 150) + 'px';
         }
       } catch (err) {
-        console.error("Gemini 润色失败:", err);
+        console.error("提示词润色失败:", err);
+        alert("润色失败，请检查网络或模型配置：\n" + err.message);
       } finally {
         DOM.enhancePromptBtn.classList.remove('enhancing');
         DOM.userInput.disabled = false;
