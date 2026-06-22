@@ -27,10 +27,12 @@ body{background:#f6f8fa;padding:12px;max-width:1000px;margin:0 auto}
 .hide-submenu{padding-left:10px;display:none}
 .hide-submenu.show{display:block}
 .hide-submenu .menu-item{font-size:12px;padding:6px 14px 6px 20px}
-.legend{background:#fff;padding:8px 16px;border-radius:10px;box-shadow:0 2px 8px #e0e4ec;margin-bottom:10px;display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:#666;align-items:center}
-.legend-title{font-weight:bold}
-.legend-item{display:flex;align-items:center;gap:6px}
-.legend-color{width:20px;height:14px;border-radius:3px}
+
+/* 筛选按钮栏 */
+.filter-bar{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
+.filter-btn{padding:6px 16px;border:none;border-radius:20px;cursor:pointer;font-size:13px;background:#f0f2f5;color:#606266;white-space:nowrap;}
+.filter-btn.active{background:#409eff;color:#fff;font-weight:500;}
+
 .tree-container{background:#fff;border-radius:10px;padding:10px;box-shadow:0 2px 8px #e0e4ec}
 .level-0 .task-main{border-left:6px solid transparent;border-image:linear-gradient(to bottom,#ff7675,#c0392b) 1;padding-left:10px}
 .level-0 .progress-bar{background:linear-gradient(to right,#ff7675,#c0392b)}
@@ -45,16 +47,8 @@ body{background:#f6f8fa;padding:12px;max-width:1000px;margin:0 auto}
 .tree-item{margin:6px 0}
 .tree-item.hidden-by-search{display:none}
 .task-main{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#fafbfc;border-radius:0 5px 0 0;cursor:pointer;flex-wrap:wrap}
-.task-text{
-    font-size:14px;flex:1;font-weight:500;min-width:100px;
-    /* 默认截断 */
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-    user-select:none;
-}
-/* 展开状态 */
-.task-text.expanded{
-    white-space:normal;word-break:break-all;
-}
+.task-text{font-size:14px;flex:1;font-weight:500;min-width:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;user-select:none}
+.task-text.expanded{white-space:normal;word-break:break-all}
 .completed .task-text{text-decoration:line-through;color:#909399}
 .indeterminate .task-text{color:#409eff}
 .overdue-text .task-text{color:#e74c3c;font-weight:bold}
@@ -146,11 +140,19 @@ body{background:#f6f8fa;padding:12px;max-width:1000px;margin:0 auto}
         </div>
     </div>
 </div>
-<div class="legend"><span class="legend-title">层级：</span><div class="legend-item level-0"><div class="legend-color"></div>1级</div><div class="legend-item level-1"><div class="legend-color"></div>2级</div><div class="legend-item level-2"><div class="legend-color"></div>3级</div><div class="legend-item level-3"><div class="legend-color"></div>4级</div><div class="legend-item level-4"><div class="legend-color"></div>深层</div></div>
+
+<!-- 筛选按钮栏 -->
+<div class="filter-bar">
+    <button class="filter-btn active" data-filter="all">全部</button>
+    <button class="filter-btn" data-filter="done">已完成</button>
+    <button class="filter-btn" data-filter="progress">进行中</button>
+    <button class="filter-btn" data-filter="todo">未开始</button>
+</div>
+
 <div class="tree-container" id="treeWrap"><div class="empty-tip">暂无任务，点右上角「+」新增或导入</div></div>
 <div class="no-search-result" id="noSearchResult">🔍 没有找到匹配的任务</div>
 
-<!-- 弹窗（与之前相同，略） -->
+<!-- 弹窗 -->
 <div class="modal-mask" id="settingsModal"><div class="modal-box">
 <div class="modal-title">⚙️ API 设置</div>
 <label class="modal-label">AI 平台</label><select class="modal-input" id="aiPlatform"><option value="deepseek">DeepSeek</option><option value="mimo">小米 MiMo</option></select>
@@ -170,7 +172,7 @@ body{background:#f6f8fa;padding:12px;max-width:1000px;margin:0 auto}
 <label class="modal-label">截止日期（可选）</label><div class="modal-date-row"><input type="date" id="addTopDate"><button class="btn-clear-date" id="clearAddDate">清除</button></div>
 <label class="modal-label">任务来源 / 发起人</label><input type="text" class="modal-input" id="addTopSource" placeholder="例如：张三">
 <label class="modal-label">备注</label><textarea class="modal-textarea" id="addTopNote" placeholder="详细说明..."></textarea>
-<div class="modal-tip">💡 口语描述后点AI改写自动生成</div>
+<div class="modal-tip" id="addTopTip">💡 口语描述后点AI改写自动生成</div>
 <div class="modal-btns"><button class="btn btn-default" id="addTopCancel">取消</button><button class="btn btn-primary" id="addTopConfirm">添加</button></div>
 </div></div>
 
@@ -207,6 +209,7 @@ body{background:#f6f8fa;padding:12px;max-width:1000px;margin:0 auto}
 // ========== 全局数据 ==========
 let taskTree = JSON.parse(localStorage.getItem("treeTodo_enhanced")) || [];
 let hideDoneAll = false, hideLevels = {}, currentEditId = null, aiGeneratedTreeText = "", searchKeyword = "", currentNoteId = null;
+let statusFilter = 'all';
 
 const DEFAULT_SYSTEM_PROMPT = `你是一个任务清单格式化工具。将用户的口语化描述转换为树形任务清单，格式严格如下：
 顶层任务：[项目名]
@@ -235,8 +238,16 @@ function toggleCheck(node){ node.checked=!node.checked; node.indeterminate=false
 function findParent(list,target){ for(let item of list){ if(item.children&&item.children.includes(target)) return item; if(item.children){ const p=findParent(item.children,target); if(p) return p; } } return null; }
 function matchSearch(node,keyword){ if(!keyword) return true; const kw=keyword.toLowerCase(); const {name}=parseTaskText(node.text); if(name.toLowerCase().includes(kw)) return true; if(node.source&&node.source.toLowerCase().includes(kw)) return true; if(node.note&&node.note.toLowerCase().includes(kw)) return true; if(node.children) return node.children.some(c=>matchSearch(c,kw)); return false; }
 function highlightText(text,keyword){ if(!keyword) return text; const escaped=keyword.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); return text.replace(new RegExp(`(${escaped})`,'gi'),'<span class="highlight">$1</span>'); }
-
 function calcProgress(node){ let total=0,done=0; function loop(n){ if(!n.children||n.children.length===0){ total++; if(n.checked) done++; } else n.children.forEach(loop); } loop(node); return {total,done,rate:total===0?0:(done/total*100).toFixed(0)}; }
+function escapeHtml(str){ return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+function matchesStatusFilter(node){
+    if(statusFilter === 'all') return true;
+    if(statusFilter === 'done') return node.checked === true;
+    if(statusFilter === 'progress') return node.indeterminate === true;
+    if(statusFilter === 'todo') return !node.checked && !node.indeterminate;
+    return true;
+}
 
 function parseTreeText(rawText){
     const lines=rawText.split(/\r?\n/).map(s=>s.trim()).filter(s=>s);
@@ -269,16 +280,17 @@ function parseTreeText(rawText){
 
 function shouldHide(node,level){ if(hideDoneAll&&node.checked) return true; if(hideLevels[level]&&node.checked) return true; return false; }
 function renderNode(node,level){
+    if(shouldHide(node,level)) return "";
+    if(!matchesStatusFilter(node)) return "";
     const levelCls=`level-${Math.min(level,4)}`; const {total,done,rate}=calcProgress(node);
     let cls=""; if(node.checked) cls="completed"; else if(node.indeterminate) cls="indeterminate";
-    if(shouldHide(node,level)) return "";
     if(searchKeyword&&!matchSearch(node,searchKeyword)) return `<div class="tree-item hidden-by-search" data-id="${node.id}"></div>`;
     const hasChildren=total>0, arrowCls=hasChildren?(node.collapsed?"collapsed":""):"empty", childrenCls=node.collapsed?"collapsed":"";
     const overdue=isOverdue(node), childOverdue=hasOverdueChild(node); if(overdue) cls+=" overdue-text";
-    const {date,name}=parseTaskText(node.text); const displayName=searchKeyword?highlightText(name,searchKeyword):name;
-    const dateTagHtml=date?`<span class="date-tag ${overdue?'overdue':''}" data-action="editDate" data-id="${node.id}">${date}</span>`:'';
-    const sourceTagHtml=node.source?`<span class="source-tag">👤 ${node.source}</span>`:'';
-    const noteIndicatorHtml=node.note?`<span class="note-indicator" title="${node.note.substring(0,50)}">📝</span>`:'';
+    const {date,name}=parseTaskText(node.text); const displayName=searchKeyword?highlightText(escapeHtml(name),searchKeyword):escapeHtml(name);
+    const dateTagHtml=date?`<span class="date-tag ${overdue?'overdue':''}" data-action="editDate" data-id="${node.id}">${escapeHtml(date)}</span>`:'';
+    const sourceTagHtml=node.source?`<span class="source-tag">👤 ${escapeHtml(node.source)}</span>`:'';
+    const noteIndicatorHtml=node.note?`<span class="note-indicator" title="${escapeHtml(node.note.substring(0,50))}">📝</span>`:'';
     const overdueIconHtml=(childOverdue&&!date)?'<span class="overdue-icon">!</span>':'';
     let html=`<div class="tree-item ${levelCls} ${cls}" data-id="${node.id}"><div class="task-main" data-id="${node.id}">
         <span class="toggle-arrow ${arrowCls}" data-action="toggle" data-id="${node.id}">▼</span>
@@ -286,7 +298,7 @@ function renderNode(node,level){
         <span class="task-text" data-id="${node.id}">${displayName}</span>
         <span class="tag-group">${dateTagHtml}${sourceTagHtml}${noteIndicatorHtml}</span>${overdueIconHtml}
         <button class="more-btn" data-action="more" data-id="${node.id}">⋯</button></div>
-        <div class="task-detail" data-detail="${node.id}">${node.source?`<div class="meta-row"><div class="meta-item">👤 来源：${node.source}</div></div>`:''}${node.note?`<div class="note-content">📝 ${node.note}</div>`:''}</div>
+        <div class="task-detail" data-detail="${node.id}">${node.source?`<div class="meta-row"><div class="meta-item">👤 来源：${escapeHtml(node.source)}</div></div>`:''}${node.note?`<div class="note-content">📝 ${escapeHtml(node.note)}</div>`:''}</div>
         <div class="task-actions" data-parent="${node.id}">
             <button class="btn btn-add" data-action="add" data-id="${node.id}">添加子任务</button>
             <button class="btn btn-edit" data-action="edit" data-id="${node.id}">修改</button>
@@ -317,107 +329,184 @@ async function callAI(messages, customUrl=null){
 }
 function cleanAIOutput(text){ return text.replace(/^```[a-zA-Z]*\n?/gm,'').replace(/\n?```$/gm,'').trim(); }
 
-// ========== 事件绑定 ==========
-document.getElementById("menuBtn").onclick=e=>{ e.stopPropagation(); document.getElementById("dropdownMenu").classList.toggle("show"); };
-document.addEventListener("click",()=>{ document.getElementById("dropdownMenu").classList.remove("show"); document.getElementById("hideSubmenu").classList.remove("show"); });
-document.getElementById("dropdownMenu").onclick=e=>e.stopPropagation();
-document.getElementById("menuHideLevel").onclick=e=>{ e.stopPropagation(); document.getElementById("hideSubmenu").classList.toggle("show"); };
-document.querySelectorAll(".hide-submenu .menu-item[data-hidelevel]").forEach(item=>{ item.onclick=function(e){ e.stopPropagation(); const lv=parseInt(this.dataset.hidelevel); hideLevels[lv]=!hideLevels[lv]; this.style.background=hideLevels[lv]?'#e6f7ff':''; this.style.color=hideLevels[lv]?'#409eff':''; renderTree(); }; });
-document.getElementById("showAllBtn").onclick=e=>{ e.stopPropagation(); hideDoneAll=false; hideLevels={}; document.getElementById("hideDoneBtn").classList.remove("active"); document.querySelectorAll(".hide-submenu .menu-item[data-hidelevel]").forEach(i=>{i.style.background='';i.style.color='';}); renderTree(); };
-document.getElementById("hideDoneBtn").onclick=function(){ hideDoneAll=!hideDoneAll; this.classList.toggle("active"); renderTree(); };
+// ========== 事件绑定（完整无缺失）==========
+document.getElementById("menuBtn").onclick = e => { e.stopPropagation(); document.getElementById("dropdownMenu").classList.toggle("show"); };
+document.addEventListener("click", () => { document.getElementById("dropdownMenu").classList.remove("show"); document.getElementById("hideSubmenu").classList.remove("show"); });
+document.getElementById("dropdownMenu").onclick = e => e.stopPropagation();
+document.getElementById("menuHideLevel").onclick = e => { e.stopPropagation(); document.getElementById("hideSubmenu").classList.toggle("show"); };
+document.querySelectorAll(".hide-submenu .menu-item[data-hidelevel]").forEach(item => { item.onclick = function(e){ e.stopPropagation(); const lv = parseInt(this.dataset.hidelevel); hideLevels[lv] = !hideLevels[lv]; this.style.background = hideLevels[lv] ? '#e6f7ff' : ''; this.style.color = hideLevels[lv] ? '#409eff' : ''; renderTree(); }; });
+document.getElementById("showAllBtn").onclick = e => { e.stopPropagation(); hideDoneAll = false; hideLevels = {}; document.getElementById("hideDoneBtn").classList.remove("active"); document.querySelectorAll(".hide-submenu .menu-item[data-hidelevel]").forEach(i => { i.style.background = ''; i.style.color = ''; }); renderTree(); };
+document.getElementById("hideDoneBtn").onclick = function(){ hideDoneAll = !hideDoneAll; this.classList.toggle("active"); renderTree(); };
+document.getElementById("searchInput").addEventListener("input", function(){ clearTimeout(this._timer); this._timer = setTimeout(() => { searchKeyword = this.value.trim(); document.getElementById("searchClear").style.display = searchKeyword ? 'inline-block' : 'none'; renderTree(); }, 300); });
+document.getElementById("searchClear").onclick = () => { searchInput.value = ''; searchKeyword = ''; searchClear.style.display = 'none'; renderTree(); };
 
-// 搜索
-document.getElementById("searchInput").addEventListener("input",function(){ clearTimeout(this._timer); this._timer=setTimeout(()=>{ searchKeyword=this.value.trim(); document.getElementById("searchClear").style.display=searchKeyword?'inline-block':'none'; renderTree(); },300); });
-document.getElementById("searchClear").onclick=()=>{ searchInput.value=''; searchKeyword=''; searchClear.style.display='none'; renderTree(); };
+// 三个菜单按钮
+document.getElementById("menuAddTop").onclick = () => {
+    document.getElementById("addTopInput").value = "";
+    document.getElementById("addTopDate").value = "";
+    document.getElementById("addTopSource").value = "";
+    document.getElementById("addTopNote").value = "";
+    document.getElementById("aiRewritePreview").style.display = "none";
+    document.getElementById("aiRewriteLoading").style.display = "none";
+    document.getElementById("addTopTip").textContent = "💡 口语描述后点AI改写自动生成";
+    aiGeneratedTreeText = "";
+    document.getElementById("addTopModal").style.display = "flex";
+};
+document.getElementById("menuImport").onclick = () => {
+    document.getElementById("importDescInput").value = "";
+    document.getElementById("importTextarea").value = "";
+    document.getElementById("importAiPreview").style.display = "none";
+    document.getElementById("importAiLoading").style.display = "none";
+    document.getElementById("importModal").style.display = "flex";
+};
+document.getElementById("menuSettings").onclick = () => {
+    const s = getSettings();
+    document.getElementById("aiPlatform").value = s.platform;
+    document.getElementById("apiUrlInput").value = s.apiUrl;
+    document.getElementById("apiKeyInput").value = s.apiKey;
+    document.getElementById("systemPromptInput").value = (s.systemPrompt === DEFAULT_SYSTEM_PROMPT) ? "" : s.systemPrompt;
+    updateModelSelect(s.platform);
+    document.getElementById("modelSelect").value = s.model;
+    document.getElementById("settingsModal").style.display = "flex";
+};
 
-// 树区域事件委托（包含展开任务文本逻辑）
-treeWrap.addEventListener("click",function(e){
-    const el=e.target.closest("[data-action]"); if(!el) return; const action=el.dataset.action, id=el.dataset.id; e.stopPropagation();
-    const node=findNode(taskTree,id); if(!node) return;
-    switch(action){
-        case "toggle": if(el.classList.contains("empty")) return; node.collapsed=!node.collapsed; saveData(); renderTree(); break;
+// 树区域事件委托
+treeWrap.addEventListener("click", function(e) {
+    const el = e.target.closest("[data-action]"); if (!el) return;
+    const action = el.dataset.action, id = el.dataset.id; e.stopPropagation();
+    const node = findNode(taskTree, id); if (!node) return;
+    switch (action) {
+        case "toggle": if (el.classList.contains("empty")) return; node.collapsed = !node.collapsed; saveData(); renderTree(); break;
         case "check": toggleCheck(node); break;
         case "edit": case "editDate": openEditModal(id); break;
         case "more":
-            const ab=document.querySelector(`.task-actions[data-parent="${id}"]`);
-            const db=document.querySelector(`.task-detail[data-detail="${id}"]`);
-            // 处理任务文本展开/收起
-            const textEl=document.querySelector(`.task-text[data-id="${id}"]`);
-            if(textEl){
-                if(textEl.classList.contains("expanded")){
-                    textEl.classList.remove("expanded");
-                } else {
-                    // 关闭其他可能展开的文本
-                    document.querySelectorAll('.task-text.expanded').forEach(t=>t.classList.remove('expanded'));
-                    textEl.classList.add("expanded");
-                }
+            const ab = document.querySelector(`.task-actions[data-parent="${id}"]`);
+            const db = document.querySelector(`.task-detail[data-detail="${id}"]`);
+            const textEl = document.querySelector(`.task-text[data-id="${id}"]`);
+            if (textEl) {
+                if (textEl.classList.contains("expanded")) { textEl.classList.remove("expanded"); }
+                else { document.querySelectorAll('.task-text.expanded').forEach(t => t.classList.remove('expanded')); textEl.classList.add("expanded"); }
             }
-            if(ab){
-                document.querySelectorAll(".task-actions.show").forEach(b=>{if(b.dataset.parent!==id) b.classList.remove("show");});
-                ab.classList.toggle("show");
-            }
-            if(db&&(node.source||node.note)) db.classList.toggle("show");
+            if (ab) { document.querySelectorAll(".task-actions.show").forEach(b => { if (b.dataset.parent !== id) b.classList.remove("show"); }); ab.classList.toggle("show"); }
+            if (db && (node.source || node.note)) db.classList.toggle("show");
             break;
         case "note": openNoteModal(id); break;
-        case "add": const ct=prompt("输入子步骤内容："); if(ct&&ct.trim()){ const nc={id:genId(),text:ct.trim(),checked:false,indeterminate:false,collapsed:false,source:"",note:"",children:[]}; if(!node.children) node.children=[]; node.children.push(nc); node.collapsed=false; saveData(); renderTree(); } break;
-        case "delete": if(confirm("确定删除该任务及其所有子任务吗？")){ deleteNode(taskTree,id); saveData(); renderTree(); } break;
+        case "add":
+            const ct = prompt("输入子步骤内容："); if (ct && ct.trim()) { const nc = { id: genId(), text: ct.trim(), checked: false, indeterminate: false, collapsed: false, source: "", note: "", children: [] }; if (!node.children) node.children = []; node.children.push(nc); node.collapsed = false; saveData(); renderTree(); }
+            break;
+        case "delete": if (confirm("确定删除该任务及其所有子任务吗？")) { deleteNode(taskTree, id); saveData(); renderTree(); } break;
     }
 });
-treeWrap.addEventListener("dblclick",function(e){ const tm=e.target.closest(".task-main"); if(tm){ const id=tm.dataset.id; if(id) openEditModal(id); } });
+treeWrap.addEventListener("dblclick", function(e) { const tm = e.target.closest(".task-main"); if (tm) { const id = tm.dataset.id; if (id) openEditModal(id); } });
 
-function openEditModal(id){ currentEditId=id; const node=findNode(taskTree,id); if(!node) return; const {date,name}=parseTaskText(node.text); document.getElementById("editNameInput").value=name; document.getElementById("editDateInput").value=date||""; document.getElementById("editSourceInput").value=node.source||""; document.getElementById("editNoteInput").value=node.note||""; document.getElementById("editModal").style.display="flex"; }
-
-// 备注弹窗
-function openNoteModal(id){ currentNoteId=id; const node=findNode(taskTree,id); document.getElementById("noteSourceInput").value=node.source||""; document.getElementById("noteContentInput").value=node.note||""; document.getElementById("noteModal").style.display="flex"; }
-document.getElementById("noteSave").onclick=()=>{ const node=findNode(taskTree,currentNoteId); if(node){ node.source=document.getElementById("noteSourceInput").value.trim(); node.note=document.getElementById("noteContentInput").value.trim(); saveData(); renderTree(); } document.getElementById("noteModal").style.display="none"; };
-document.getElementById("noteCancel").onclick=()=>document.getElementById("noteModal").style.display="none";
+function openEditModal(id) {
+    currentEditId = id; const node = findNode(taskTree, id); if (!node) return;
+    const { date, name } = parseTaskText(node.text);
+    document.getElementById("editNameInput").value = name; document.getElementById("editDateInput").value = date || "";
+    document.getElementById("editSourceInput").value = node.source || ""; document.getElementById("editNoteInput").value = node.note || "";
+    document.getElementById("editModal").style.display = "flex";
+}
+function openNoteModal(id) {
+    currentNoteId = id; const node = findNode(taskTree, id);
+    document.getElementById("noteSourceInput").value = node.source || ""; document.getElementById("noteContentInput").value = node.note || "";
+    document.getElementById("noteModal").style.display = "flex";
+}
+document.getElementById("noteSave").onclick = () => { const node = findNode(taskTree, currentNoteId); if (node) { node.source = document.getElementById("noteSourceInput").value.trim(); node.note = document.getElementById("noteContentInput").value.trim(); saveData(); renderTree(); } document.getElementById("noteModal").style.display = "none"; };
+document.getElementById("noteCancel").onclick = () => document.getElementById("noteModal").style.display = "none";
 
 // 设置弹窗
-document.getElementById("menuSettings").onclick=()=>{ const s=getSettings(); document.getElementById("aiPlatform").value=s.platform; document.getElementById("apiUrlInput").value=s.apiUrl; document.getElementById("apiKeyInput").value=s.apiKey; document.getElementById("systemPromptInput").value=(s.systemPrompt===DEFAULT_SYSTEM_PROMPT)?"":s.systemPrompt; updateModelSelect(s.platform); document.getElementById("modelSelect").value=s.model; document.getElementById("settingsModal").style.display="flex"; };
-document.getElementById("aiPlatform").onchange=function(){ const p=this.value; updateModelSelect(p); const du=DEFAULT_API_URLS[p]; if(du) document.getElementById("apiUrlInput").value=du; };
-document.getElementById("resetPromptBtn").onclick=()=>document.getElementById("systemPromptInput").value=DEFAULT_SYSTEM_PROMPT;
-document.getElementById("settingsCancel").onclick=()=>document.getElementById("settingsModal").style.display="none";
-document.getElementById("settingsSave").onclick=()=>{ const p=document.getElementById("aiPlatform").value, url=document.getElementById("apiUrlInput").value.trim(), key=document.getElementById("apiKeyInput").value.trim(), model=document.getElementById("modelSelect").value, sp=document.getElementById("systemPromptInput").value.trim()||DEFAULT_SYSTEM_PROMPT; if(!url||!key||!model) return alert("请完整填写"); saveSettings({platform:p,apiUrl:url,apiKey:key,model,systemPrompt:sp}); document.getElementById("settingsModal").style.display="none"; alert("设置已保存"); };
-// API测试
-document.getElementById("testApiBtn").onclick=async function(){ const res=document.getElementById("testResult"); res.className="test-result"; res.textContent="⏳ 测试中..."; res.style.display="block"; try{ const tmpUrl=document.getElementById("apiUrlInput").value.trim(), tmpKey=document.getElementById("apiKeyInput").value.trim(), tmpModel=document.getElementById("modelSelect").value; if(!tmpUrl||!tmpKey||!tmpModel) throw new Error("请完整填写API信息"); const orig=getSettings(); saveSettings({platform:document.getElementById("aiPlatform").value,apiUrl:tmpUrl,apiKey:tmpKey,model:tmpModel,systemPrompt:orig.systemPrompt}); await callAI([{role:"user",content:"Hi"}]); saveSettings(orig); res.className="test-result success"; res.textContent="✅ 连接成功"; }catch(e){ res.className="test-result error"; res.textContent="❌ 失败："+e.message; } };
+document.getElementById("aiPlatform").onchange = function() { const p = this.value; updateModelSelect(p); const du = DEFAULT_API_URLS[p]; if (du) document.getElementById("apiUrlInput").value = du; };
+document.getElementById("resetPromptBtn").onclick = () => document.getElementById("systemPromptInput").value = DEFAULT_SYSTEM_PROMPT;
+document.getElementById("settingsCancel").onclick = () => document.getElementById("settingsModal").style.display = "none";
+document.getElementById("settingsSave").onclick = () => {
+    const p = document.getElementById("aiPlatform").value, url = document.getElementById("apiUrlInput").value.trim(), key = document.getElementById("apiKeyInput").value.trim(), model = document.getElementById("modelSelect").value, sp = document.getElementById("systemPromptInput").value.trim() || DEFAULT_SYSTEM_PROMPT;
+    if (!url || !key || !model) return alert("请完整填写");
+    saveSettings({ platform: p, apiUrl: url, apiKey: key, model, systemPrompt: sp });
+    document.getElementById("settingsModal").style.display = "none"; alert("设置已保存");
+};
+document.getElementById("testApiBtn").onclick = async function() {
+    const res = document.getElementById("testResult"); res.className = "test-result"; res.textContent = "⏳ 测试中..."; res.style.display = "block";
+    try {
+        const tmpUrl = document.getElementById("apiUrlInput").value.trim(), tmpKey = document.getElementById("apiKeyInput").value.trim(), tmpModel = document.getElementById("modelSelect").value;
+        if (!tmpUrl || !tmpKey || !tmpModel) throw new Error("请完整填写API信息");
+        const orig = getSettings(); saveSettings({ platform: document.getElementById("aiPlatform").value, apiUrl: tmpUrl, apiKey: tmpKey, model: tmpModel, systemPrompt: orig.systemPrompt });
+        try {
+            await callAI([{ role: "user", content: "Hi" }]);
+            res.className = "test-result success"; res.textContent = "✅ 连接成功";
+        } finally { saveSettings(orig); }
+    } catch (e) { res.className = "test-result error"; res.textContent = "❌ 失败：" + e.message; }
+};
 
 // 新增任务弹窗
-document.getElementById("menuAddTop").onclick=()=>{ document.getElementById("addTopInput").value=""; document.getElementById("addTopDate").value=""; document.getElementById("addTopSource").value=""; document.getElementById("addTopNote").value=""; document.getElementById("aiRewritePreview").style.display="none"; document.getElementById("aiRewriteLoading").style.display="none"; document.getElementById("addTopTip").textContent="💡 口语描述后点AI改写"; aiGeneratedTreeText=""; document.getElementById("addTopModal").style.display="flex"; };
-document.getElementById("addTopCancel").onclick=()=>document.getElementById("addTopModal").style.display="none";
-document.getElementById("clearAddDate").onclick=()=>document.getElementById("addTopDate").value="";
-document.getElementById("aiRewriteInAddBtn").onclick=async function(){ const input=document.getElementById("addTopInput").value.trim(); if(!input) return alert("请输入描述"); const btn=this; btn.disabled=true; btn.textContent="生成中..."; document.getElementById("aiRewriteLoading").style.display="block"; try{ const result=await callAI([{role:"system",content:getSettings().systemPrompt},{role:"user",content:input}]); const cleaned=cleanAIOutput(result); document.getElementById("aiRewritePreview").textContent=cleaned; document.getElementById("aiRewritePreview").style.display="block"; aiGeneratedTreeText=cleaned; document.getElementById("addTopTip").textContent="✅ 生成成功，点击添加导入"; }catch(e){ alert("AI错误："+e.message); }finally{ btn.disabled=false; btn.textContent="🔄 AI改写"; document.getElementById("aiRewriteLoading").style.display="none"; } };
-document.getElementById("addTopConfirm").onclick=function(){ if(aiGeneratedTreeText){ const root=parseTreeText(aiGeneratedTreeText); if(!root) return alert("格式错误"); const src=document.getElementById("addTopSource").value.trim(), nt=document.getElementById("addTopNote").value.trim(); if(src) root.source=src; if(nt) root.note=nt; taskTree.push(root); }else{ const name=document.getElementById("addTopInput").value.trim(); if(!name) return alert("请输入名称"); const date=document.getElementById("addTopDate").value, src=document.getElementById("addTopSource").value.trim(), nt=document.getElementById("addTopNote").value.trim(); taskTree.push({id:genId(),text:combineTaskText(date,name),checked:false,indeterminate:false,collapsed:false,source:src,note:nt,children:[]}); } document.getElementById("addTopModal").style.display="none"; saveData(); renderTree(); aiGeneratedTreeText=""; };
-
-// 修改弹窗 AI 改写
-document.getElementById("aiRewriteEditBtn").onclick=async function(){ const input=document.getElementById("editNameInput").value.trim(); if(!input) return alert("请输入描述"); const btn=this; btn.disabled=true; btn.textContent="生成中..."; try{ const result=await callAI([{role:"system",content:"将以下描述转换为一个简洁的任务名，可含【日期】格式。只返回名称。"},{role:"user",content:input}]); document.getElementById("editNameInput").value=cleanAIOutput(result); }catch(e){ alert("AI错误："+e.message); }finally{ btn.disabled=false; btn.textContent="🔄 AI改写"; } };
-document.getElementById("editCancel").onclick=()=>document.getElementById("editModal").style.display="none";
-document.getElementById("clearEditDate").onclick=()=>document.getElementById("editDateInput").value="";
-document.getElementById("editConfirm").onclick=()=>{ const name=document.getElementById("editNameInput").value.trim(); if(!name) return alert("名称不能为空"); const node=findNode(taskTree,currentEditId); if(!node) return; node.text=combineTaskText(document.getElementById("editDateInput").value,name); node.source=document.getElementById("editSourceInput").value.trim(); node.note=document.getElementById("editNoteInput").value.trim(); saveData(); renderTree(); document.getElementById("editModal").style.display="none"; };
-
-// 批量导入弹窗（带AI改写）
-document.getElementById("menuImport").onclick=()=>{ document.getElementById("importDescInput").value=""; document.getElementById("importTextarea").value=""; document.getElementById("importAiPreview").style.display="none"; document.getElementById("importAiLoading").style.display="none"; document.getElementById("importModal").style.display="flex"; };
-document.getElementById("importCancel").onclick=()=>document.getElementById("importModal").style.display="none";
-document.getElementById("aiRewriteImportBtn").onclick=async function(){
-    const desc=document.getElementById("importDescInput").value.trim();
-    if(!desc) return alert("请用口语描述你要做的事情");
-    const btn=this; btn.disabled=true; btn.textContent="生成中..."; document.getElementById("importAiLoading").style.display="block";
-    try{
-        const result=await callAI([{role:"system",content:getSettings().systemPrompt},{role:"user",content:desc}]);
-        const cleaned=cleanAIOutput(result);
-        document.getElementById("importTextarea").value=cleaned;
-        document.getElementById("importAiPreview").textContent=cleaned;
-        document.getElementById("importAiPreview").style.display="block";
-    }catch(e){ alert("AI错误："+e.message); }
-    finally{ btn.disabled=false; btn.textContent="🔄 AI改写"; document.getElementById("importAiLoading").style.display="none"; }
+document.getElementById("addTopCancel").onclick = () => document.getElementById("addTopModal").style.display = "none";
+document.getElementById("clearAddDate").onclick = () => document.getElementById("addTopDate").value = "";
+document.getElementById("aiRewriteInAddBtn").onclick = async function() {
+    const input = document.getElementById("addTopInput").value.trim(); if (!input) return alert("请输入描述");
+    const btn = this; btn.disabled = true; btn.textContent = "生成中..."; document.getElementById("aiRewriteLoading").style.display = "block";
+    try {
+        const result = await callAI([{ role: "system", content: getSettings().systemPrompt }, { role: "user", content: input }]);
+        const cleaned = cleanAIOutput(result); document.getElementById("aiRewritePreview").textContent = cleaned; document.getElementById("aiRewritePreview").style.display = "block";
+        aiGeneratedTreeText = cleaned; document.getElementById("addTopTip").textContent = "✅ 生成成功，点击添加导入";
+    } catch (e) { alert("AI错误：" + e.message); }
+    finally { btn.disabled = false; btn.textContent = "🔄 AI改写"; document.getElementById("aiRewriteLoading").style.display = "none"; }
 };
-document.getElementById("importConfirm").onclick=function(){
-    const txt=document.getElementById("importTextarea").value.trim();
-    if(!txt) return alert("请粘贴或AI生成树形文本");
-    const root=parseTreeText(txt);
-    if(!root) return alert("解析失败，请检查格式");
-    taskTree.push(root); saveData(); renderTree();
-    document.getElementById("importModal").style.display="none";
+document.getElementById("addTopConfirm").onclick = function() {
+    if (aiGeneratedTreeText) {
+        const root = parseTreeText(aiGeneratedTreeText); if (!root) return alert("格式错误");
+        const src = document.getElementById("addTopSource").value.trim(), nt = document.getElementById("addTopNote").value.trim();
+        if (src) root.source = src; if (nt) root.note = nt;
+        taskTree.push(root);
+    } else {
+        const name = document.getElementById("addTopInput").value.trim(); if (!name) return alert("请输入名称");
+        const date = document.getElementById("addTopDate").value, src = document.getElementById("addTopSource").value.trim(), nt = document.getElementById("addTopNote").value.trim();
+        taskTree.push({ id: genId(), text: combineTaskText(date, name), checked: false, indeterminate: false, collapsed: false, source: src, note: nt, children: [] });
+    }
+    document.getElementById("addTopModal").style.display = "none"; saveData(); renderTree(); aiGeneratedTreeText = "";
 };
+
+// 修改弹窗
+document.getElementById("aiRewriteEditBtn").onclick = async function() {
+    const input = document.getElementById("editNameInput").value.trim(); if (!input) return alert("请输入描述");
+    const btn = this; btn.disabled = true; btn.textContent = "生成中...";
+    try { const result = await callAI([{ role: "system", content: "将以下描述转换为一个简洁的任务名，可含【日期】格式。只返回名称。" }, { role: "user", content: input }]); document.getElementById("editNameInput").value = cleanAIOutput(result); } catch (e) { alert("AI错误：" + e.message); }
+    finally { btn.disabled = false; btn.textContent = "🔄 AI改写"; }
+};
+document.getElementById("editCancel").onclick = () => document.getElementById("editModal").style.display = "none";
+document.getElementById("clearEditDate").onclick = () => document.getElementById("editDateInput").value = "";
+document.getElementById("editConfirm").onclick = () => {
+    const name = document.getElementById("editNameInput").value.trim(); if (!name) return alert("名称不能为空");
+    const node = findNode(taskTree, currentEditId); if (!node) return;
+    node.text = combineTaskText(document.getElementById("editDateInput").value, name);
+    node.source = document.getElementById("editSourceInput").value.trim(); node.note = document.getElementById("editNoteInput").value.trim();
+    saveData(); renderTree(); document.getElementById("editModal").style.display = "none";
+};
+
+// 批量导入弹窗
+document.getElementById("importCancel").onclick = () => document.getElementById("importModal").style.display = "none";
+document.getElementById("aiRewriteImportBtn").onclick = async function() {
+    const desc = document.getElementById("importDescInput").value.trim(); if (!desc) return alert("请用口语描述你要做的事情");
+    const btn = this; btn.disabled = true; btn.textContent = "生成中..."; document.getElementById("importAiLoading").style.display = "block";
+    try {
+        const result = await callAI([{ role: "system", content: getSettings().systemPrompt }, { role: "user", content: desc }]);
+        const cleaned = cleanAIOutput(result); document.getElementById("importTextarea").value = cleaned; document.getElementById("importAiPreview").textContent = cleaned; document.getElementById("importAiPreview").style.display = "block";
+    } catch (e) { alert("AI错误：" + e.message); }
+    finally { btn.disabled = false; btn.textContent = "🔄 AI改写"; document.getElementById("importAiLoading").style.display = "none"; }
+};
+document.getElementById("importConfirm").onclick = function() {
+    const txt = document.getElementById("importTextarea").value.trim(); if (!txt) return alert("请粘贴或AI生成树形文本");
+    const root = parseTreeText(txt); if (!root) return alert("解析失败，请检查格式");
+    taskTree.push(root); saveData(); renderTree(); document.getElementById("importModal").style.display = "none";
+};
+
+// 筛选按钮
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        statusFilter = this.dataset.filter;
+        renderTree();
+    });
+});
 
 // 初始化
 updateModelSelect("deepseek");
