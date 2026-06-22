@@ -45,7 +45,16 @@ body{background:#f6f8fa;padding:12px;max-width:1000px;margin:0 auto}
 .tree-item{margin:6px 0}
 .tree-item.hidden-by-search{display:none}
 .task-main{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#fafbfc;border-radius:0 5px 0 0;cursor:pointer;flex-wrap:wrap}
-.task-text{font-size:14px;flex:1;font-weight:500;min-width:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;user-select:none}
+.task-text{
+    font-size:14px;flex:1;font-weight:500;min-width:100px;
+    /* 默认截断 */
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    user-select:none;
+}
+/* 展开状态 */
+.task-text.expanded{
+    white-space:normal;word-break:break-all;
+}
 .completed .task-text{text-decoration:line-through;color:#909399}
 .indeterminate .task-text{color:#409eff}
 .overdue-text .task-text{color:#e74c3c;font-weight:bold}
@@ -141,7 +150,7 @@ body{background:#f6f8fa;padding:12px;max-width:1000px;margin:0 auto}
 <div class="tree-container" id="treeWrap"><div class="empty-tip">暂无任务，点右上角「+」新增或导入</div></div>
 <div class="no-search-result" id="noSearchResult">🔍 没有找到匹配的任务</div>
 
-<!-- 弹窗们 -->
+<!-- 弹窗（与之前相同，略） -->
 <div class="modal-mask" id="settingsModal"><div class="modal-box">
 <div class="modal-title">⚙️ API 设置</div>
 <label class="modal-label">AI 平台</label><select class="modal-input" id="aiPlatform"><option value="deepseek">DeepSeek</option><option value="mimo">小米 MiMo</option></select>
@@ -182,7 +191,6 @@ body{background:#f6f8fa;padding:12px;max-width:1000px;margin:0 auto}
 <div class="modal-btns"><button class="btn btn-default" id="noteCancel">取消</button><button class="btn btn-primary" id="noteSave">保存</button></div>
 </div></div>
 
-<!-- 批量导入弹窗，增加AI改写 -->
 <div class="modal-mask" id="importModal"><div class="modal-box">
 <div class="modal-title">📥 批量导入树形文本</div>
 <div class="modal-tip">用口语描述，AI自动生成树形清单；或手动粘贴标准格式。</div>
@@ -225,15 +233,11 @@ function deleteNode(list,id){ for(let i=0;i<list.length;i++){ if(list[i].id===id
 function updateParentCheck(parentNode){ if(!parentNode) return; const states=parentNode.children.map(c=>c.checked); parentNode.checked=states.every(s=>s); parentNode.indeterminate=!parentNode.checked&&states.some(s=>s); }
 function toggleCheck(node){ node.checked=!node.checked; node.indeterminate=false; function setChild(n,v){ n.checked=v; n.indeterminate=false; if(n.children) n.children.forEach(c=>setChild(c,v)); } setChild(node,node.checked); let p=findParent(taskTree,node); while(p){ updateParentCheck(p); p=findParent(taskTree,p); } renderTree(); }
 function findParent(list,target){ for(let item of list){ if(item.children&&item.children.includes(target)) return item; if(item.children){ const p=findParent(item.children,target); if(p) return p; } } return null; }
-
-// 搜索与高亮
 function matchSearch(node,keyword){ if(!keyword) return true; const kw=keyword.toLowerCase(); const {name}=parseTaskText(node.text); if(name.toLowerCase().includes(kw)) return true; if(node.source&&node.source.toLowerCase().includes(kw)) return true; if(node.note&&node.note.toLowerCase().includes(kw)) return true; if(node.children) return node.children.some(c=>matchSearch(c,kw)); return false; }
 function highlightText(text,keyword){ if(!keyword) return text; const escaped=keyword.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); return text.replace(new RegExp(`(${escaped})`,'gi'),'<span class="highlight">$1</span>'); }
 
-// 进度计算
 function calcProgress(node){ let total=0,done=0; function loop(n){ if(!n.children||n.children.length===0){ total++; if(n.checked) done++; } else n.children.forEach(loop); } loop(node); return {total,done,rate:total===0?0:(done/total*100).toFixed(0)}; }
 
-// 解析树形文本（增强容错）
 function parseTreeText(rawText){
     const lines=rawText.split(/\r?\n/).map(s=>s.trim()).filter(s=>s);
     let rootItem=null; const levelStack=[];
@@ -263,7 +267,6 @@ function parseTreeText(rawText){
     return rootItem;
 }
 
-// ========== 渲染 ==========
 function shouldHide(node,level){ if(hideDoneAll&&node.checked) return true; if(hideLevels[level]&&node.checked) return true; return false; }
 function renderNode(node,level){
     const levelCls=`level-${Math.min(level,4)}`; const {total,done,rate}=calcProgress(node);
@@ -280,7 +283,7 @@ function renderNode(node,level){
     let html=`<div class="tree-item ${levelCls} ${cls}" data-id="${node.id}"><div class="task-main" data-id="${node.id}">
         <span class="toggle-arrow ${arrowCls}" data-action="toggle" data-id="${node.id}">▼</span>
         <input type="checkbox" ${node.checked?'checked':''} data-action="check" data-id="${node.id}" class="check-box">
-        <span class="task-text" data-action="edit" data-id="${node.id}">${displayName}</span>
+        <span class="task-text" data-id="${node.id}">${displayName}</span>
         <span class="tag-group">${dateTagHtml}${sourceTagHtml}${noteIndicatorHtml}</span>${overdueIconHtml}
         <button class="more-btn" data-action="more" data-id="${node.id}">⋯</button></div>
         <div class="task-detail" data-detail="${node.id}">${node.source?`<div class="meta-row"><div class="meta-item">👤 来源：${node.source}</div></div>`:''}${node.note?`<div class="note-content">📝 ${node.note}</div>`:''}</div>
@@ -327,7 +330,7 @@ document.getElementById("hideDoneBtn").onclick=function(){ hideDoneAll=!hideDone
 document.getElementById("searchInput").addEventListener("input",function(){ clearTimeout(this._timer); this._timer=setTimeout(()=>{ searchKeyword=this.value.trim(); document.getElementById("searchClear").style.display=searchKeyword?'inline-block':'none'; renderTree(); },300); });
 document.getElementById("searchClear").onclick=()=>{ searchInput.value=''; searchKeyword=''; searchClear.style.display='none'; renderTree(); };
 
-// 树区域事件委托
+// 树区域事件委托（包含展开任务文本逻辑）
 treeWrap.addEventListener("click",function(e){
     const el=e.target.closest("[data-action]"); if(!el) return; const action=el.dataset.action, id=el.dataset.id; e.stopPropagation();
     const node=findNode(taskTree,id); if(!node) return;
@@ -335,7 +338,26 @@ treeWrap.addEventListener("click",function(e){
         case "toggle": if(el.classList.contains("empty")) return; node.collapsed=!node.collapsed; saveData(); renderTree(); break;
         case "check": toggleCheck(node); break;
         case "edit": case "editDate": openEditModal(id); break;
-        case "more": const ab=document.querySelector(`.task-actions[data-parent="${id}"]`), db=document.querySelector(`.task-detail[data-detail="${id}"]`); if(ab){ document.querySelectorAll(".task-actions.show").forEach(b=>{if(b.dataset.parent!==id) b.classList.remove("show");}); ab.classList.toggle("show"); } if(db&&(node.source||node.note)) db.classList.toggle("show"); break;
+        case "more":
+            const ab=document.querySelector(`.task-actions[data-parent="${id}"]`);
+            const db=document.querySelector(`.task-detail[data-detail="${id}"]`);
+            // 处理任务文本展开/收起
+            const textEl=document.querySelector(`.task-text[data-id="${id}"]`);
+            if(textEl){
+                if(textEl.classList.contains("expanded")){
+                    textEl.classList.remove("expanded");
+                } else {
+                    // 关闭其他可能展开的文本
+                    document.querySelectorAll('.task-text.expanded').forEach(t=>t.classList.remove('expanded'));
+                    textEl.classList.add("expanded");
+                }
+            }
+            if(ab){
+                document.querySelectorAll(".task-actions.show").forEach(b=>{if(b.dataset.parent!==id) b.classList.remove("show");});
+                ab.classList.toggle("show");
+            }
+            if(db&&(node.source||node.note)) db.classList.toggle("show");
+            break;
         case "note": openNoteModal(id); break;
         case "add": const ct=prompt("输入子步骤内容："); if(ct&&ct.trim()){ const nc={id:genId(),text:ct.trim(),checked:false,indeterminate:false,collapsed:false,source:"",note:"",children:[]}; if(!node.children) node.children=[]; node.children.push(nc); node.collapsed=false; saveData(); renderTree(); } break;
         case "delete": if(confirm("确定删除该任务及其所有子任务吗？")){ deleteNode(taskTree,id); saveData(); renderTree(); } break;
