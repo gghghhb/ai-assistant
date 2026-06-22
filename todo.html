@@ -3,286 +3,110 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>多层级任务清单 - 增强版</title>
+<title>多层级任务清单 · AI增强版</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Microsoft Yahei}
 body{background:#f6f8fa;padding:12px;max-width:1000px;margin:0 auto}
-
-.header{
-    background:#fff;padding:12px 16px;border-radius:10px;box-shadow:0 2px 8px #e0e4ec;
-    margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;
-    position:relative;flex-wrap:wrap;gap:8px;
-}
+.header{background:#fff;padding:12px 16px;border-radius:10px;box-shadow:0 2px 8px #e0e4ec;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;position:relative;flex-wrap:wrap;gap:8px;}
 .header h1{font-size:18px;color:#222}
 .header-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-
-.search-box{
-    display:flex;align-items:center;gap:4px;background:#f0f2f5;border-radius:6px;
-    padding:4px 8px;flex:1;min-width:150px;max-width:250px;
-}
-.search-box input{
-    border:none;background:transparent;outline:none;font-size:13px;width:100%;
-}
-.search-box .search-icon{color:#909399;font-size:14px;}
-.search-box .search-clear{
-    border:none;background:transparent;cursor:pointer;color:#909399;
-    font-size:14px;display:none;padding:0 2px;
-}
-
-.func-btn{
-    padding:6px 12px;border:none;border-radius:6px;cursor:pointer;font-size:13px;
-    background:#f0f2f5;color:#606266;white-space:nowrap;
-}
+.search-box{display:flex;align-items:center;gap:4px;background:#f0f2f5;border-radius:6px;padding:4px 8px;flex:1;min-width:150px;max-width:250px;}
+.search-box input{border:none;background:transparent;outline:none;font-size:13px;width:100%}
+.search-box .search-icon{color:#909399;font-size:14px}
+.search-box .search-clear{border:none;background:transparent;cursor:pointer;color:#909399;font-size:14px;display:none;padding:0 2px}
+.func-btn{padding:6px 12px;border:none;border-radius:6px;cursor:pointer;font-size:13px;background:#f0f2f5;color:#606266;white-space:nowrap}
 .func-btn:hover{background:#e4e7ed}
 .func-btn.active{background:#409eff;color:#fff}
-
-.menu-btn{
-    width:34px;height:34px;border:none;background:#409eff;color:#fff;border-radius:6px;
-    font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;
-    flex-shrink:0;
-}
+.menu-btn{width:34px;height:34px;border:none;background:#409eff;color:#fff;border-radius:6px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .menu-btn:hover{background:#337ecc}
-
-.dropdown-menu{
-    position:absolute;top:52px;right:16px;background:#fff;border-radius:8px;
-    box-shadow:0 4px 16px rgba(0,0,0,0.15);padding:6px 0;display:none;z-index:100;
-    min-width:180px;
-}
+.dropdown-menu{position:absolute;top:52px;right:16px;background:#fff;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.15);padding:6px 0;display:none;z-index:100;min-width:180px}
 .dropdown-menu.show{display:block}
-.menu-item{
-    padding:8px 14px;cursor:pointer;font-size:13px;
-}
+.menu-item{padding:8px 14px;cursor:pointer;font-size:13px}
 .menu-item:hover{background:#f5f7fa}
 .menu-divider{height:1px;background:#eee;margin:4px 0}
-
-.hide-submenu{
-    padding-left:10px;display:none;
-}
+.hide-submenu{padding-left:10px;display:none}
 .hide-submenu.show{display:block}
 .hide-submenu .menu-item{font-size:12px;padding:6px 14px 6px 20px}
-
-.legend{
-    background:#fff;padding:8px 16px;border-radius:10px;box-shadow:0 2px 8px #e0e4ec;
-    margin-bottom:10px;display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:#666;
-    align-items:center;
-}
+.legend{background:#fff;padding:8px 16px;border-radius:10px;box-shadow:0 2px 8px #e0e4ec;margin-bottom:10px;display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:#666;align-items:center}
 .legend-title{font-weight:bold}
 .legend-item{display:flex;align-items:center;gap:6px}
 .legend-color{width:20px;height:14px;border-radius:3px}
-
 .tree-container{background:#fff;border-radius:10px;padding:10px;box-shadow:0 2px 8px #e0e4ec}
-
-/* 四级渐变配色 */
-.level-0 .task-main{
-    border-left:6px solid transparent;
-    border-image: linear-gradient(to bottom, #ff7675, #e74c3c, #c0392b) 1;
-    padding-left:10px;
-}
-.level-0 .progress-bar{background:linear-gradient(to right, #ff7675, #c0392b)}
-.level-0 .legend-color{background:linear-gradient(to right, #ff7675, #c0392b)}
-
-.level-1 .task-main{
-    border-left:6px solid transparent;
-    border-image: linear-gradient(to bottom, #55efc4, #27ae60, #1e8449) 1;
-    padding-left:10px;
-}
-.level-1 .progress-bar{background:linear-gradient(to right, #55efc4, #1e8449)}
-.level-1 .legend-color{background:linear-gradient(to right, #55efc4, #1e8449)}
-
-.level-2 .task-main{
-    border-left:6px solid transparent;
-    border-image: linear-gradient(to bottom, #74b9ff, #2980b9, #1f618d) 1;
-    padding-left:10px;
-}
-.level-2 .progress-bar{background:linear-gradient(to right, #74b9ff, #1f618d)}
-.level-2 .legend-color{background:linear-gradient(to right, #74b9ff, #1f618d)}
-
-.level-3 .task-main{
-    border-left:6px solid transparent;
-    border-image: linear-gradient(to bottom, #a29bfe, #8e44ad, #6c3483) 1;
-    padding-left:10px;
-}
-.level-3 .progress-bar{background:linear-gradient(to right, #a29bfe, #6c3483)}
-.level-3 .legend-color{background:linear-gradient(to right, #a29bfe, #6c3483)}
-
-.level-4 .task-main,
-.level-5 .task-main,
-.level-6 .task-main{
-    border-left:6px solid transparent;
-    border-image: linear-gradient(to bottom, #636e72, #2d3436, #1e272e) 1;
-    padding-left:10px;
-}
-.level-4 .progress-bar,
-.level-5 .progress-bar,
-.level-6 .progress-bar{background:linear-gradient(to right, #636e72, #1e272e)}
-.level-4 .legend-color{background:linear-gradient(to right, #636e72, #1e272e)}
-
+.level-0 .task-main{border-left:6px solid transparent;border-image:linear-gradient(to bottom,#ff7675,#c0392b) 1;padding-left:10px}
+.level-0 .progress-bar{background:linear-gradient(to right,#ff7675,#c0392b)}
+.level-1 .task-main{border-left:6px solid transparent;border-image:linear-gradient(to bottom,#55efc4,#1e8449) 1;padding-left:10px}
+.level-1 .progress-bar{background:linear-gradient(to right,#55efc4,#1e8449)}
+.level-2 .task-main{border-left:6px solid transparent;border-image:linear-gradient(to bottom,#74b9ff,#1f618d) 1;padding-left:10px}
+.level-2 .progress-bar{background:linear-gradient(to right,#74b9ff,#1f618d)}
+.level-3 .task-main{border-left:6px solid transparent;border-image:linear-gradient(to bottom,#a29bfe,#6c3483) 1;padding-left:10px}
+.level-3 .progress-bar{background:linear-gradient(to right,#a29bfe,#6c3483)}
+.level-4 .task-main{border-left:6px solid transparent;border-image:linear-gradient(to bottom,#636e72,#1e272e) 1;padding-left:10px}
+.level-4 .progress-bar{background:linear-gradient(to right,#636e72,#1e272e)}
 .tree-item{margin:6px 0}
 .tree-item.hidden-by-search{display:none}
-
-.task-main{
-    display:flex;align-items:center;gap:8px;padding:6px 10px;
-    background:#fafbfc;border-radius:0 5px 0 0;cursor:pointer;flex-wrap:wrap;
-}
-.task-text{
-    font-size:14px;flex:1;font-weight:500;min-width:100px;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-    user-select:none;
-}
+.task-main{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#fafbfc;border-radius:0 5px 0 0;cursor:pointer;flex-wrap:wrap}
+.task-text{font-size:14px;flex:1;font-weight:500;min-width:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;user-select:none}
 .completed .task-text{text-decoration:line-through;color:#909399}
 .indeterminate .task-text{color:#409eff}
 .overdue-text .task-text{color:#e74c3c;font-weight:bold}
-
-/* 搜索高亮 */
-.task-text .highlight{background:#ffe066;padding:0 1px;border-radius:2px;}
-
-.more-btn{
-    width:22px;height:22px;border:none;background:transparent;border-radius:4px;
-    cursor:pointer;font-size:16px;color:#909399;display:flex;align-items:center;justify-content:center;
-    flex-shrink:0;
-}
+.task-text .highlight{background:#ffe066;padding:0 1px;border-radius:2px}
+.more-btn{width:22px;height:22px;border:none;background:transparent;border-radius:4px;cursor:pointer;font-size:16px;color:#909399;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .more-btn:hover{background:#e4e7ed;color:#606266}
-
-/* 标签组 */
-.tag-group{display:flex;gap:4px;flex-wrap:wrap;flex-shrink:0;}
-.date-tag{
-    font-size:11px;padding:2px 6px;border-radius:3px;background:#e8f4ff;
-    color:#409eff;cursor:pointer;white-space:nowrap;
-}
-.date-tag.overdue{
-    background:#fef0f0;color:#e74c3c;
-    animation:pulse 1.5s infinite;
-}
-.source-tag{
-    font-size:11px;padding:2px 6px;border-radius:3px;background:#f0e6ff;
-    color:#8e44ad;white-space:nowrap;
-}
-.note-indicator{
-    font-size:12px;color:#f39c12;cursor:pointer;flex-shrink:0;
-}
-@keyframes pulse{
-    0%,100%{opacity:1}
-    50%{opacity:0.4}
-}
-
-.overdue-icon{
-    color:#e74c3c;font-weight:bold;font-size:14px;flex-shrink:0;
-    animation:pulse 1.5s infinite;
-}
-
-.toggle-arrow{
-    width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;
-    cursor:pointer;font-size:10px;color:#666;user-select:none;transition:transform 0.2s;
-    flex-shrink:0;
-}
+.tag-group{display:flex;gap:4px;flex-wrap:wrap;flex-shrink:0}
+.date-tag{font-size:11px;padding:2px 6px;border-radius:3px;background:#e8f4ff;color:#409eff;cursor:pointer;white-space:nowrap}
+.date-tag.overdue{background:#fef0f0;color:#e74c3c;animation:pulse 1.5s infinite}
+.source-tag{font-size:11px;padding:2px 6px;border-radius:3px;background:#f0e6ff;color:#8e44ad;white-space:nowrap}
+.note-indicator{font-size:12px;color:#f39c12;cursor:pointer;flex-shrink:0}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.overdue-icon{color:#e74c3c;font-weight:bold;font-size:14px;flex-shrink:0;animation:pulse 1.5s infinite}
+.toggle-arrow{width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:10px;color:#666;user-select:none;transition:transform 0.2s;flex-shrink:0}
 .toggle-arrow.collapsed{transform:rotate(-90deg)}
 .toggle-arrow.empty{visibility:hidden}
-
-/* 任务详情区 */
-.task-detail{
-    display:none;padding:8px 10px 8px 34px;background:#fafbfc;
-    border-radius:0 0 5px 5px;font-size:12px;color:#606266;
-}
+.task-detail{display:none;padding:8px 10px 8px 34px;background:#fafbfc;border-radius:0 0 5px 5px;font-size:12px;color:#606266}
 .task-detail.show{display:block}
-.task-detail .note-content{
-    background:#fffde7;padding:8px;border-radius:4px;border-left:3px solid #f39c12;
-    margin-top:4px;white-space:pre-wrap;word-break:break-all;
-}
-.task-detail .meta-row{
-    display:flex;gap:12px;flex-wrap:wrap;align-items:center;
-}
-.task-detail .meta-item{display:flex;align-items:center;gap:4px;}
-
-.task-actions{
-    display:none;gap:6px;padding:4px 10px 6px 34px;
-    background:#fafbfc;border-radius:0 0 5px 5px;
-}
-.task-actions.show{display:flex;flex-wrap:wrap;}
-.task-actions .btn{
-    padding:3px 10px;font-size:12px;border:none;border-radius:4px;cursor:pointer;
-}
+.task-detail .note-content{background:#fffde7;padding:8px;border-radius:4px;border-left:3px solid #f39c12;margin-top:4px;white-space:pre-wrap;word-break:break-all}
+.task-actions{display:none;gap:6px;padding:4px 10px 6px 34px;background:#fafbfc;border-radius:0 0 5px 5px}
+.task-actions.show{display:flex;flex-wrap:wrap}
+.task-actions .btn{padding:3px 10px;font-size:12px;border:none;border-radius:4px;cursor:pointer}
 .btn-add{background:#27ae60;color:#fff}
 .btn-edit{background:#f39c12;color:#fff}
 .btn-del{background:#e74c3c;color:#fff}
 .btn-note{background:#8e44ad;color:#fff}
-
-.progress-wrap{
-    width:calc(100% - 34px);height:5px;background:#e4e7ed;border-radius:3px;
-    margin:3px 0 3px 34px;
-}
+.progress-wrap{width:calc(100% - 34px);height:5px;background:#e4e7ed;border-radius:3px;margin:3px 0 3px 34px}
 .progress-bar{height:100%;border-radius:3px;transition:0.2s width}
-
 .children-wrap{margin-left:18px;margin-top:3px;overflow:hidden}
 .children-wrap.collapsed{display:none}
-.empty-tip{color:#909399;padding:24px;text-align:center;font-size:13px}
-.no-search-result{color:#e74c3c;padding:24px;text-align:center;font-size:13px;display:none;}
-
+.empty-tip,.no-search-result{color:#909399;padding:24px;text-align:center;font-size:13px}
 .check-box{width:14px;height:14px;cursor:pointer;flex-shrink:0}
-
-/* 弹窗样式 */
-.modal-mask{
-    position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);
-    display:none;align-items:center;justify-content:center;z-index:999;
-    overflow-y:auto;padding:20px;
-}
-.modal-box{
-    width:90%;max-width:520px;background:#fff;padding:20px;border-radius:10px;
-    max-height:90vh;overflow-y:auto;
-}
+.modal-mask{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;z-index:999;overflow-y:auto;padding:20px}
+.modal-box{width:90%;max-width:520px;background:#fff;padding:20px;border-radius:10px;max-height:90vh;overflow-y:auto}
 .modal-title{font-size:16px;font-weight:bold;margin-bottom:14px}
-.modal-input{
-    width:100%;padding:8px 10px;border:1px solid #dcdfe6;border-radius:6px;
-    font-size:14px;margin-bottom:12px;
-}
+.modal-input{width:100%;padding:8px 10px;border:1px solid #dcdfe6;border-radius:6px;font-size:14px;margin-bottom:12px}
 .modal-label{font-size:13px;color:#606266;margin-bottom:4px;display:block}
 .modal-date-row{display:flex;gap:10px;align-items:center;margin-bottom:12px}
-.modal-date-row input[type="date"]{
-    flex:1;padding:8px 10px;border:1px solid #dcdfe6;border-radius:6px;font-size:14px;
-}
-.modal-date-row .btn-clear-date{
-    padding:8px 12px;border:1px solid #dcdfe6;background:#fff;border-radius:6px;
-    cursor:pointer;font-size:13px;color:#606266;
-}
-.modal-textarea{
-    width:100%;min-height:80px;padding:8px 10px;border:1px solid #dcdfe6;
-    border-radius:6px;font-size:13px;resize:vertical;margin-bottom:14px;
-}
+.modal-date-row input[type="date"]{flex:1;padding:8px 10px;border:1px solid #dcdfe6;border-radius:6px;font-size:14px}
+.btn-clear-date{padding:8px 12px;border:1px solid #dcdfe6;background:#fff;border-radius:6px;cursor:pointer;font-size:13px;color:#606266}
+.modal-textarea{width:100%;min-height:80px;padding:8px 10px;border:1px solid #dcdfe6;border-radius:6px;font-size:13px;resize:vertical;margin-bottom:14px}
 .modal-tip{font-size:12px;color:#909399;margin-bottom:10px;line-height:1.6}
 .modal-btns{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
 .btn{padding:7px 14px;border:none;border-radius:6px;cursor:pointer;font-size:13px}
 .btn-primary{background:#409eff;color:#fff}
 .btn-default{background:#fff;color:#606266;border:1px solid #dcdfe6}
 .btn-success{background:#27ae60;color:#fff}
-.btn-warning{background:#f39c12;color:#fff}
-.btn-purple{background:#8e44ad;color:#fff}
-
-select.modal-input{appearance:auto;-webkit-appearance:auto;}
-
-/* AI预览区 */
-.ai-preview-area{
-    background:#f8f9fa;border:1px solid #e4e7ed;border-radius:6px;
-    padding:10px;margin:10px 0;max-height:200px;overflow-y:auto;
-    font-family:monospace;font-size:12px;white-space:pre-wrap;
-    display:none;
-}
-.loading-text{
-    text-align:center;color:#409eff;padding:10px;display:none;font-size:13px;
-}
-
-/* 输入框+AI按钮组合 */
-.input-with-ai{display:flex;gap:8px;align-items:stretch;margin-bottom:12px;}
-.input-with-ai .modal-input{margin-bottom:0;flex:1;}
-.input-with-ai .btn-ai-rewrite{
-    padding:8px 14px;border:none;border-radius:6px;cursor:pointer;
-    background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;
-    font-size:13px;white-space:nowrap;flex-shrink:0;
-}
-.input-with-ai .btn-ai-rewrite:hover{opacity:0.9}
-.input-with-ai .btn-ai-rewrite:disabled{opacity:0.5;cursor:not-allowed}
+.btn-test{background:#909399;color:#fff;margin-right:auto}
+.btn-ai-rewrite{padding:8px 14px;border:none;border-radius:6px;cursor:pointer;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-size:13px;white-space:nowrap;flex-shrink:0}
+.btn-ai-rewrite:hover{opacity:0.9}
+.btn-ai-rewrite:disabled{opacity:0.5;cursor:not-allowed}
+.ai-preview-area{background:#f8f9fa;border:1px solid #e4e7ed;border-radius:6px;padding:10px;margin:10px 0;max-height:200px;overflow-y:auto;font-family:monospace;font-size:12px;white-space:pre-wrap;display:none}
+.loading-text{text-align:center;color:#409eff;padding:10px;display:none;font-size:13px}
+.test-result{margin-top:8px;font-size:13px;display:none;padding:6px 10px;border-radius:4px}
+.test-result.success{background:#e8f5e9;color:#2e7d32;display:block}
+.test-result.error{background:#ffebee;color:#c62828;display:block}
+.input-with-ai{display:flex;gap:8px;align-items:stretch;margin-bottom:12px}
+.input-with-ai .modal-input{margin-bottom:0;flex:1}
 </style>
 </head>
 <body>
-
 <div class="header">
     <h1>📋 任务清单</h1>
     <div class="search-box" id="searchBox">
@@ -300,1073 +124,282 @@ select.modal-input{appearance:auto;-webkit-appearance:auto;}
         <div class="menu-divider"></div>
         <div class="menu-item" id="menuSettings">⚙️ API设置</div>
         <div class="menu-divider"></div>
-        <div class="menu-item" id="menuHideLevel">
-            👁️ 按层级隐藏已完成 ▸
+        <div class="menu-item" id="menuHideLevel">👁️ 按层级隐藏已完成 ▸
             <div class="hide-submenu" id="hideSubmenu">
-                <div class="menu-item" data-hidelevel="0">隐藏第1层(红)已完成</div>
-                <div class="menu-item" data-hidelevel="1">隐藏第2层(绿)已完成</div>
-                <div class="menu-item" data-hidelevel="2">隐藏第3层(蓝)已完成</div>
-                <div class="menu-item" data-hidelevel="3">隐藏第4层(紫)已完成</div>
-                <div class="menu-item" data-hidelevel="4">隐藏深层(灰)已完成</div>
+                <div class="menu-item" data-hidelevel="0">隐藏第1层(红)</div>
+                <div class="menu-item" data-hidelevel="1">隐藏第2层(绿)</div>
+                <div class="menu-item" data-hidelevel="2">隐藏第3层(蓝)</div>
+                <div class="menu-item" data-hidelevel="3">隐藏第4层(紫)</div>
+                <div class="menu-item" data-hidelevel="4">隐藏深层(灰)</div>
                 <div class="menu-divider"></div>
                 <div class="menu-item" id="showAllBtn">显示全部</div>
             </div>
         </div>
     </div>
 </div>
-
-<div class="legend">
-    <span class="legend-title">层级：</span>
-    <div class="legend-item level-0"><div class="legend-color"></div>1级</div>
-    <div class="legend-item level-1"><div class="legend-color"></div>2级</div>
-    <div class="legend-item level-2"><div class="legend-color"></div>3级</div>
-    <div class="legend-item level-3"><div class="legend-color"></div>4级</div>
-    <div class="legend-item level-4"><div class="legend-color"></div>深层</div>
-</div>
-
-<div class="tree-container" id="treeWrap">
-    <div class="empty-tip">暂无任务，点右上角「+」新增或导入</div>
-</div>
+<div class="legend"><span class="legend-title">层级：</span><div class="legend-item level-0"><div class="legend-color"></div>1级</div><div class="legend-item level-1"><div class="legend-color"></div>2级</div><div class="legend-item level-2"><div class="legend-color"></div>3级</div><div class="legend-item level-3"><div class="legend-color"></div>4级</div><div class="legend-item level-4"><div class="legend-color"></div>深层</div></div>
+<div class="tree-container" id="treeWrap"><div class="empty-tip">暂无任务，点右上角「+」新增或导入</div></div>
 <div class="no-search-result" id="noSearchResult">🔍 没有找到匹配的任务</div>
 
-<!-- API设置弹窗 -->
-<div class="modal-mask" id="settingsModal">
-    <div class="modal-box">
-        <div class="modal-title">⚙️ API 设置</div>
-        
-        <label class="modal-label">AI 平台</label>
-        <select class="modal-input" id="aiPlatform">
-            <option value="deepseek">DeepSeek</option>
-            <option value="mimo">小米 MiMo</option>
-        </select>
-        
-        <label class="modal-label">API 地址（端点 URL，需包含 /chat/completions）</label>
-        <input type="text" class="modal-input" id="apiUrlInput" placeholder="https://api.xiaomimimo.com/v1/chat/completions">
-        <div class="modal-tip" id="apiUrlTip">
-            🔗 DeepSeek默认：https://api.deepseek.com/v1/chat/completions<br>
-            🔗 MiMo默认：https://api.xiaomimimo.com/v1/chat/completions
-        </div>
-        
-        <label class="modal-label">API Key</label>
-        <input type="password" class="modal-input" id="apiKeyInput" placeholder="输入你的 API Key">
-        <div class="modal-tip">🔒 Key 仅保存在本地浏览器</div>
-        
-        <label class="modal-label">模型选择</label>
-        <select class="modal-input" id="modelSelect">
-            <option value="">请先选择平台</option>
-        </select>
-        
-        <label class="modal-label">System Prompt（可自定义）</label>
-        <textarea class="modal-textarea" id="systemPromptInput" placeholder="自定义 System Prompt，留空则使用默认"></textarea>
-        <div class="modal-tip">💡 告诉 AI 如何格式化你的任务。留空使用默认</div>
-        
-        <button class="btn btn-default" id="resetPromptBtn" style="margin-bottom:12px;">恢复默认 Prompt</button>
-        
-        <div class="modal-btns">
-            <button class="btn btn-default" id="settingsCancel">取消</button>
-            <button class="btn btn-primary" id="settingsSave">保存设置</button>
-        </div>
-    </div>
-</div>
+<!-- 弹窗们 -->
+<div class="modal-mask" id="settingsModal"><div class="modal-box">
+<div class="modal-title">⚙️ API 设置</div>
+<label class="modal-label">AI 平台</label><select class="modal-input" id="aiPlatform"><option value="deepseek">DeepSeek</option><option value="mimo">小米 MiMo</option></select>
+<label class="modal-label">API 地址</label><input type="text" class="modal-input" id="apiUrlInput" placeholder="https://api.xiaomimimo.com/v1/chat/completions"><div class="modal-tip">保存时自动补全 /chat/completions</div>
+<label class="modal-label">API Key</label><input type="password" class="modal-input" id="apiKeyInput" placeholder="输入你的 API Key">
+<label class="modal-label">模型选择</label><select class="modal-input" id="modelSelect"><option value="">请先选择平台</option></select>
+<label class="modal-label">System Prompt</label><textarea class="modal-textarea" id="systemPromptInput" placeholder="留空使用默认"></textarea>
+<button class="btn btn-default" id="resetPromptBtn" style="margin-bottom:12px;">恢复默认 Prompt</button>
+<div class="modal-btns" style="margin-bottom:12px;"><button class="btn btn-test" id="testApiBtn">🔌 测试连接</button><button class="btn btn-default" id="settingsCancel">取消</button><button class="btn btn-primary" id="settingsSave">保存</button></div>
+<div class="test-result" id="testResult"></div>
+</div></div>
 
-<!-- 新增/编辑任务弹窗（整合AI改写） -->
-<div class="modal-mask" id="addTopModal">
-    <div class="modal-box">
-        <div class="modal-title" id="addTopTitle">新增顶层任务</div>
-        
-        <label class="modal-label">任务名称</label>
-        <div class="input-with-ai">
-            <input type="text" class="modal-input" id="addTopInput" placeholder="输入任务名称，或口语描述让AI改写">
-            <button class="btn-ai-rewrite" id="aiRewriteInAddBtn" title="AI改写任务描述">🔄 AI改写</button>
-        </div>
-        
-        <div class="loading-text" id="aiRewriteLoading">⏳ AI 正在生成中...</div>
-        <div class="ai-preview-area" id="aiRewritePreview"></div>
-        
-        <label class="modal-label">截止日期（可选）</label>
-        <div class="modal-date-row">
-            <input type="date" id="addTopDate">
-            <button class="btn-clear-date" id="clearAddDate">清除</button>
-        </div>
-        
-        <label class="modal-label">任务来源 / 发起人（可选）</label>
-        <input type="text" class="modal-input" id="addTopSource" placeholder="例如：张三、产品部、客户需求">
-        
-        <label class="modal-label">备注（可选）</label>
-        <textarea class="modal-textarea" id="addTopNote" placeholder="任务详细说明、注意事项等..." style="min-height:60px;"></textarea>
-        
-        <div class="modal-tip" id="addTopTip">💡 可以直接输入任务名，也可以用口语描述后点「AI改写」自动生成</div>
-        
-        <div class="modal-btns">
-            <button class="btn btn-default" id="addTopCancel">取消</button>
-            <button class="btn btn-primary" id="addTopConfirm">添加</button>
-        </div>
-    </div>
-</div>
+<div class="modal-mask" id="addTopModal"><div class="modal-box">
+<div class="modal-title">新增顶层任务</div>
+<label class="modal-label">任务名称</label><div class="input-with-ai"><input type="text" class="modal-input" id="addTopInput" placeholder="输入任务名称，或口语描述"><button class="btn-ai-rewrite" id="aiRewriteInAddBtn">🔄 AI改写</button></div>
+<div class="loading-text" id="aiRewriteLoading">⏳ AI 生成中...</div><div class="ai-preview-area" id="aiRewritePreview"></div>
+<label class="modal-label">截止日期（可选）</label><div class="modal-date-row"><input type="date" id="addTopDate"><button class="btn-clear-date" id="clearAddDate">清除</button></div>
+<label class="modal-label">任务来源 / 发起人</label><input type="text" class="modal-input" id="addTopSource" placeholder="例如：张三">
+<label class="modal-label">备注</label><textarea class="modal-textarea" id="addTopNote" placeholder="详细说明..."></textarea>
+<div class="modal-tip">💡 口语描述后点AI改写自动生成</div>
+<div class="modal-btns"><button class="btn btn-default" id="addTopCancel">取消</button><button class="btn btn-primary" id="addTopConfirm">添加</button></div>
+</div></div>
 
-<!-- 批量导入弹窗 -->
-<div class="modal-mask" id="importModal">
-    <div class="modal-box">
-        <div class="modal-title">📥 批量导入树形文本</div>
-        <div class="modal-tip">
-            粘贴标准树形格式：<br>
-            顶层任务：项目名称<br>
-            ├─ 子任务1｜2026-06-23<br>
-            │  ├─ 细分任务
-        </div>
-        <textarea class="modal-textarea" id="importTextarea" placeholder="粘贴树形格式内容..."></textarea>
-        <div class="modal-btns">
-            <button class="btn btn-default" id="importCancel">取消</button>
-            <button class="btn btn-primary" id="importConfirm">解析导入</button>
-        </div>
-    </div>
-</div>
+<div class="modal-mask" id="editModal"><div class="modal-box">
+<div class="modal-title">修改任务</div>
+<label class="modal-label">任务名称</label><div class="input-with-ai"><input type="text" class="modal-input" id="editNameInput" placeholder="任务名称"><button class="btn-ai-rewrite" id="aiRewriteEditBtn">🔄 AI改写</button></div>
+<div class="loading-text" id="editAiLoading">⏳ AI 生成中...</div><div class="ai-preview-area" id="editAiPreview"></div>
+<label class="modal-label">截止日期（可选）</label><div class="modal-date-row"><input type="date" id="editDateInput"><button class="btn-clear-date" id="clearEditDate">清除</button></div>
+<label class="modal-label">任务来源 / 发起人</label><input type="text" class="modal-input" id="editSourceInput" placeholder="例如：张三">
+<label class="modal-label">备注</label><textarea class="modal-textarea" id="editNoteInput" placeholder="详细说明..."></textarea>
+<div class="modal-btns"><button class="btn btn-default" id="editCancel">取消</button><button class="btn btn-primary" id="editConfirm">保存</button></div>
+</div></div>
 
-<!-- 修改任务弹窗 -->
-<div class="modal-mask" id="editModal">
-    <div class="modal-box">
-        <div class="modal-title">修改任务</div>
-        <label class="modal-label">任务名称</label>
-        <input type="text" class="modal-input" id="editNameInput" placeholder="任务内容">
-        <label class="modal-label">截止日期（可选）</label>
-        <div class="modal-date-row">
-            <input type="date" id="editDateInput">
-            <button class="btn-clear-date" id="clearEditDate">清除日期</button>
-        </div>
-        <label class="modal-label">任务来源 / 发起人（可选）</label>
-        <input type="text" class="modal-input" id="editSourceInput" placeholder="例如：张三、产品部">
-        <label class="modal-label">备注（可选）</label>
-        <textarea class="modal-textarea" id="editNoteInput" placeholder="任务详细说明..." style="min-height:60px;"></textarea>
-        <div class="modal-btns">
-            <button class="btn btn-default" id="editCancel">取消</button>
-            <button class="btn btn-primary" id="editConfirm">保存</button>
-        </div>
-    </div>
-</div>
+<div class="modal-mask" id="noteModal"><div class="modal-box">
+<div class="modal-title">编辑备注与来源</div>
+<label class="modal-label">任务来源 / 发起人</label><input type="text" class="modal-input" id="noteSourceInput" placeholder="谁发起的？">
+<label class="modal-label">备注内容</label><textarea class="modal-textarea" id="noteContentInput" placeholder="详细说明..."></textarea>
+<div class="modal-btns"><button class="btn btn-default" id="noteCancel">取消</button><button class="btn btn-primary" id="noteSave">保存</button></div>
+</div></div>
+
+<!-- 批量导入弹窗，增加AI改写 -->
+<div class="modal-mask" id="importModal"><div class="modal-box">
+<div class="modal-title">📥 批量导入树形文本</div>
+<div class="modal-tip">用口语描述，AI自动生成树形清单；或手动粘贴标准格式。</div>
+<div class="input-with-ai"><input type="text" class="modal-input" id="importDescInput" placeholder="例如：下周要完成需求文档、开发登录功能、测试支付流程"><button class="btn-ai-rewrite" id="aiRewriteImportBtn">🔄 AI改写</button></div>
+<div class="loading-text" id="importAiLoading">⏳ AI 正在生成树形清单...</div>
+<div class="ai-preview-area" id="importAiPreview"></div>
+<textarea class="modal-textarea" id="importTextarea" placeholder="顶层任务：项目名称
+├─ 子任务1｜2026-06-23
+│  ├─ 细分任务" style="min-height:150px;"></textarea>
+<div class="modal-btns"><button class="btn btn-default" id="importCancel">取消</button><button class="btn btn-primary" id="importConfirm">解析导入</button></div>
+</div></div>
 
 <script>
-// ========== 数据管理 ==========
+// ========== 全局数据 ==========
 let taskTree = JSON.parse(localStorage.getItem("treeTodo_enhanced")) || [];
-let hideDoneAll = false;
-let hideLevels = {};
-let currentEditId = null;
-let aiGeneratedTreeText = "";
-let searchKeyword = "";
+let hideDoneAll = false, hideLevels = {}, currentEditId = null, aiGeneratedTreeText = "", searchKeyword = "", currentNoteId = null;
 
-// ========== 默认设置 ==========
-const DEFAULT_SYSTEM_PROMPT = `你是一个任务清单格式化工具。将用户的口语化描述转换为结构化的树形任务清单。
-
-输出格式必须严格遵循：
-顶层任务：[提取的核心项目名]
+const DEFAULT_SYSTEM_PROMPT = `你是一个任务清单格式化工具。将用户的口语化描述转换为树形任务清单，格式严格如下：
+顶层任务：[项目名]
 ├─ 子任务名称｜YYYY-MM-DD
-│  ├─ 子子任务名称
-│  │  ├─ 更深层任务
+│  ├─ 子子任务
+规则：1.识别时间描述转为具体日期，无日期不加。2.合理拆解2-4层。3.只输出清单，不加解释和代码块。`;
 
-规则：
-1. 自动识别时间描述（明天、下周、月底、周五等）转为具体日期（格式YYYY-MM-DD）
-2. 如果用户没有提到具体日期，不要添加日期
-3. 合理拆解任务层级，一般2-4层
-4. 保持任务描述简洁明了
-5. 直接输出格式化的任务清单，不要加任何解释文字
-6. 用中文输出`;
-
-// 修正后的默认 API 地址
-const DEFAULT_API_URLS = {
-    deepseek: "https://api.deepseek.com/v1/chat/completions",
-    mimo: "https://api.xiaomimimo.com/v1/chat/completions"   // 用户提供的新地址
-};
-
+const DEFAULT_API_URLS = { deepseek: "https://api.deepseek.com/v1/chat/completions", mimo: "https://api.xiaomimimo.com/v1/chat/completions" };
 const MODEL_LISTS = {
-    deepseek: [
-        { value: "deepseek-chat", label: "DeepSeek V3 (通用)" },
-        { value: "deepseek-reasoner", label: "DeepSeek R1 (推理增强)" }
-    ],
-    mimo: [
-        { value: "mimo-v2.5", label: "MiMo V2.5" },
-        { value: "mimo-v2.5-pro", label: "MiMo V2.5 Pro" },
-        { value: "mimo-tts-a", label: "MiMo TTS-A" }
-    ]
+    deepseek: [{ value: "deepseek-chat", label: "DeepSeek V3" }, { value: "deepseek-reasoner", label: "DeepSeek R1" }],
+    mimo: [{ value: "mimo-v2.5", label: "MiMo V2.5" }, { value: "mimo-v2.5-pro", label: "MiMo V2.5 Pro" }, { value: "mimo-tts-a", label: "MiMo TTS-A" }]
 };
 
-function getSettings(){
-    return {
-        platform: localStorage.getItem("ai_platform") || "deepseek",
-        apiUrl: localStorage.getItem("ai_apiUrl") || DEFAULT_API_URLS.deepseek,
-        apiKey: localStorage.getItem("ai_apiKey") || "",
-        model: localStorage.getItem("ai_model") || "",
-        systemPrompt: localStorage.getItem("ai_systemPrompt") || DEFAULT_SYSTEM_PROMPT
-    };
-}
+// ========== 工具函数 ==========
+function getTodayStr(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function parseTaskText(fullText){ if(!fullText) return {date:"",name:""}; const m=fullText.match(/^【(\d{4}-\d{2}-\d{2})】(.*)$/); return m?{date:m[1],name:m[2]}:{date:"",name:fullText}; }
+function combineTaskText(date,name){ return date?`【${date}】${name}`:name; }
+function isOverdue(node){ if(!node||node.checked) return false; const {date}=parseTaskText(node.text); return date?date<getTodayStr():false; }
+function hasOverdueChild(node){ if(!node.children) return false; for(let c of node.children){ if(isOverdue(c)||hasOverdueChild(c)) return true; } return false; }
+function saveData(){ localStorage.setItem("treeTodo_enhanced", JSON.stringify(taskTree)); }
+function genId(){ return Date.now()+Math.random().toString(36).slice(2); }
+function findNode(list,id){ for(let n of list){ if(n.id===id) return n; if(n.children){ const r=findNode(n.children,id); if(r) return r; } } return null; }
+function deleteNode(list,id){ for(let i=0;i<list.length;i++){ if(list[i].id===id){ list.splice(i,1); return true; } if(list[i].children&&deleteNode(list[i].children,id)) return true; } return false; }
+function updateParentCheck(parentNode){ if(!parentNode) return; const states=parentNode.children.map(c=>c.checked); parentNode.checked=states.every(s=>s); parentNode.indeterminate=!parentNode.checked&&states.some(s=>s); }
+function toggleCheck(node){ node.checked=!node.checked; node.indeterminate=false; function setChild(n,v){ n.checked=v; n.indeterminate=false; if(n.children) n.children.forEach(c=>setChild(c,v)); } setChild(node,node.checked); let p=findParent(taskTree,node); while(p){ updateParentCheck(p); p=findParent(taskTree,p); } renderTree(); }
+function findParent(list,target){ for(let item of list){ if(item.children&&item.children.includes(target)) return item; if(item.children){ const p=findParent(item.children,target); if(p) return p; } } return null; }
 
-function saveSettings(settings){
-    // 自动补全 API 地址：如果不是以 /chat/completions 结尾，自动加上
-    let url = settings.apiUrl.trim();
-    if (url && !url.endsWith("/chat/completions")) {
-        // 去掉末尾可能的斜杠
-        url = url.replace(/\/+$/, "");
-        url += "/chat/completions";
-    }
-    localStorage.setItem("ai_platform", settings.platform);
-    localStorage.setItem("ai_apiUrl", url);
-    localStorage.setItem("ai_apiKey", settings.apiKey);
-    localStorage.setItem("ai_model", settings.model);
-    localStorage.setItem("ai_systemPrompt", settings.systemPrompt);
-}
+// 搜索与高亮
+function matchSearch(node,keyword){ if(!keyword) return true; const kw=keyword.toLowerCase(); const {name}=parseTaskText(node.text); if(name.toLowerCase().includes(kw)) return true; if(node.source&&node.source.toLowerCase().includes(kw)) return true; if(node.note&&node.note.toLowerCase().includes(kw)) return true; if(node.children) return node.children.some(c=>matchSearch(c,kw)); return false; }
+function highlightText(text,keyword){ if(!keyword) return text; const escaped=keyword.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); return text.replace(new RegExp(`(${escaped})`,'gi'),'<span class="highlight">$1</span>'); }
 
-function updateModelSelect(platform){
-    const select = document.getElementById("modelSelect");
-    const models = MODEL_LISTS[platform] || [];
-    select.innerHTML = models.map(m => 
-        `<option value="${m.value}">${m.label}</option>`
-    ).join("");
-    const saved = getSettings();
-    if(saved.model && models.find(m => m.value === saved.model)){
-        select.value = saved.model;
-    }
-}
+// 进度计算
+function calcProgress(node){ let total=0,done=0; function loop(n){ if(!n.children||n.children.length===0){ total++; if(n.checked) done++; } else n.children.forEach(loop); } loop(node); return {total,done,rate:total===0?0:(done/total*100).toFixed(0)}; }
 
-function getDefaultApiUrl(platform){
-    return DEFAULT_API_URLS[platform] || "";
-}
-
-// ========== 日期工具 ==========
-function getTodayStr(){
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-
-function parseTaskText(fullText){
-    if(!fullText) return { date: "", name: "" };
-    const m = fullText.match(/^【(\d{4}-\d{2}-\d{2})】(.*)$/);
-    if(m) return { date: m[1], name: m[2] };
-    return { date: "", name: fullText };
-}
-
-function combineTaskText(date, name){
-    if(date) return `【${date}】${name}`;
-    return name;
-}
-
-function isOverdue(node){
-    if(!node || node.checked) return false;
-    const {date} = parseTaskText(node.text);
-    if(!date) return false;
-    return date < getTodayStr();
-}
-
-function hasOverdueChild(node){
-    if(!node.children || node.children.length === 0) return false;
-    for(let child of node.children){
-        if(isOverdue(child)) return true;
-        if(hasOverdueChild(child)) return true;
-    }
-    return false;
-}
-
-function saveData(){
-    localStorage.setItem("treeTodo_enhanced", JSON.stringify(taskTree));
-}
-
-function genId(){
-    return Date.now() + Math.random().toString(36).slice(2);
-}
-
-// ========== 树形解析（支持来源和备注） ==========
+// 解析树形文本（增强容错）
 function parseTreeText(rawText){
-    const lines = rawText.split(/\r?\n/).map(s=>s.trim()).filter(s=>s);
-    let rootItem = null;
-    const levelStack = [];
-
+    const lines=rawText.split(/\r?\n/).map(s=>s.trim()).filter(s=>s);
+    let rootItem=null; const levelStack=[];
     for(let line of lines){
-        if(line.startsWith("顶层任务：") || line.startsWith("顶层任务:")){
-            const title = line.replace(/^顶层任务[：:]/,"").trim();
-            rootItem = {id:genId(),text:title,checked:false,indeterminate:false,collapsed:false,source:"",note:"",children:[]};
-            levelStack.length = 0;
-            levelStack.push({level:0,node:rootItem});
-            continue;
+        if(/^顶层任务[：:]/i.test(line)){
+            const title=line.replace(/^顶层任务[：:]\s*/i,'').trim();
+            rootItem={id:genId(),text:title,checked:false,indeterminate:false,collapsed:false,source:"",note:"",children:[]};
+            levelStack.length=0; levelStack.push({level:0,node:rootItem}); continue;
         }
-        
-        let currentLevel = 0;
-        const treeMatch = line.match(/^([│\s]*[├└])/);
-        if(treeMatch){
-            const prefix = line.match(/^([│\s]*)/)[1];
-            currentLevel = Math.floor((prefix.length + 1) / 2);
-        }
-        
-        let cleanLine = line.replace(/^[│\s├└─]*\s*/, "").trim();
-        let textContent = cleanLine;
-        let dateStr = "";
-        const dateMatch = cleanLine.match(/｜(\d{4}-\d{2}-\d{2})$/);
-        if(dateMatch){
-            dateStr = dateMatch[1];
-            textContent = cleanLine.replace(/｜\d{4}-\d{2}-\d{2}$/, "").trim();
-        }
-        
-        let finalText = textContent;
-        if(dateStr) finalText = `【${dateStr}】${textContent}`;
-        
+        let currentLevel=0;
+        const treeMatch=line.match(/^([│\s]*[├└\-])/);
+        if(treeMatch){ const prefix=line.match(/^([│\s]*)/)[1]; currentLevel=Math.floor(prefix.replace(/│/g,'  ').length/2)+1; }
+        else{ const indentMatch=line.match(/^(\s+)/); if(indentMatch) currentLevel=Math.floor(indentMatch[1].length/2)+1; }
+        let cleanLine=line.replace(/^[│\s├└─]*\s*/,'').trim();
+        let textContent=cleanLine, dateStr='';
+        const dateMatch=cleanLine.match(/｜(\d{4}-\d{2}-\d{2})$/);
+        if(dateMatch){ dateStr=dateMatch[1]; textContent=cleanLine.replace(/｜\d{4}-\d{2}-\d{2}$/,'').trim(); }
+        let finalText=dateStr?`【${dateStr}】${textContent}`:textContent;
         if(!rootItem) continue;
-        
-        const newNode = {id:genId(),text:finalText,checked:false,indeterminate:false,collapsed:false,source:"",note:"",children:[]};
-        
-        while(levelStack.length && levelStack[levelStack.length-1].level >= currentLevel){
-            levelStack.pop();
-        }
-        if(levelStack.length === 0) continue;
-        
-        const parent = levelStack[levelStack.length-1].node;
-        if(!parent.children) parent.children = [];
-        parent.children.push(newNode);
-        levelStack.push({level:currentLevel,node:newNode});
+        const newNode={id:genId(),text:finalText,checked:false,indeterminate:false,collapsed:false,source:"",note:"",children:[]};
+        while(levelStack.length&&levelStack[levelStack.length-1].level>=currentLevel) levelStack.pop();
+        if(levelStack.length===0) continue;
+        const parent=levelStack[levelStack.length-1].node;
+        if(!parent.children) parent.children=[];
+        parent.children.push(newNode); levelStack.push({level:currentLevel,node:newNode});
     }
     return rootItem;
 }
 
-// ========== 进度计算 ==========
-function calcProgress(node){
-    let total = 0, done = 0;
-    function loop(n){
-        if(!n.children || n.children.length === 0){
-            total++;
-            if(n.checked) done++;
-            return;
-        }
-        n.children.forEach(c=>loop(c));
-    }
-    loop(node);
-    return {total, done, rate: total===0 ? 0 : (done/total*100).toFixed(0)};
-}
-
-function updateParentCheck(parentNode){
-    if(!parentNode) return;
-    const childStates = parentNode.children.map(c=>c.checked);
-    const allTrue = childStates.every(s=>s===true);
-    const allFalse = childStates.every(s=>s===false);
-    parentNode.checked = allTrue;
-    parentNode.indeterminate = !allTrue && !allFalse;
-    saveData();
-}
-
-function toggleCheck(node){
-    node.checked = !node.checked;
-    node.indeterminate = false;
-    function setChild(n, val){
-        n.checked = val;
-        n.indeterminate = false;
-        if(n.children) n.children.forEach(c=>setChild(c, val));
-    }
-    setChild(node, node.checked);
-
-    function findParent(list, target){
-        for(let item of list){
-            if(item.children?.includes(target)) return item;
-            if(item.children){
-                const p = findParent(item.children, target);
-                if(p) return p;
-            }
-        }
-        return null;
-    }
-    let p = findParent(taskTree, node);
-    while(p){
-        updateParentCheck(p);
-        p = findParent(taskTree, p);
-    }
-    renderTree();
-}
-
-function findNode(list, targetId){
-    for(let n of list){
-        if(n.id === targetId) return n;
-        if(n.children){
-            const res = findNode(n.children, targetId);
-            if(res) return res;
-        }
-    }
-    return null;
-}
-
-function deleteNode(list, targetId){
-    for(let i=0;i<list.length;i++){
-        if(list[i].id === targetId){
-            list.splice(i,1);
-            return true;
-        }
-        if(list[i].children && deleteNode(list[i].children, targetId)) return true;
-    }
-    return false;
-}
-
-// ========== 搜索匹配 ==========
-function matchSearch(node, keyword){
-    if(!keyword) return true;
-    const kw = keyword.toLowerCase();
-    const {name} = parseTaskText(node.text);
-    if(name.toLowerCase().includes(kw)) return true;
-    if(node.source && node.source.toLowerCase().includes(kw)) return true;
-    if(node.note && node.note.toLowerCase().includes(kw)) return true;
-    if(node.children && node.children.length > 0){
-        return node.children.some(c => matchSearch(c, kw));
-    }
-    return false;
-}
-
-function highlightText(text, keyword){
-    if(!keyword) return text;
-    const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(`(${escaped})`, 'gi');
-    return text.replace(regex, '<span class="highlight">$1</span>');
-}
-
 // ========== 渲染 ==========
-function renderNode(node, level){
-    const levelCls = `level-${Math.min(level, 4)}`;
-    const {total, done, rate} = calcProgress(node);
-    let cls = "";
-    if(node.checked) cls = "completed";
-    else if(node.indeterminate) cls = "indeterminate";
-
-    if(shouldHide(node, level)) return "";
-    
-    // 搜索过滤
-    if(searchKeyword && !matchSearch(node, searchKeyword)){
-        return `<div class="tree-item ${levelCls} hidden-by-search" data-id="${node.id}" data-level="${level}"></div>`;
-    }
-
-    const hasChildren = total > 0;
-    const arrowCls = hasChildren ? (node.collapsed ? "collapsed" : "") : "empty";
-    const childrenCls = node.collapsed ? "collapsed" : "";
-
-    const overdue = isOverdue(node);
-    const childOverdue = hasOverdueChild(node);
-    if(overdue) cls += " overdue-text";
-
-    const {date, name} = parseTaskText(node.text);
-    const displayName = searchKeyword ? highlightText(name, searchKeyword) : name;
-    
-    // 日期标签
-    const dateTagHtml = date 
-        ? `<span class="date-tag ${overdue ? 'overdue' : ''}" data-action="editDate" data-id="${node.id}">${date}</span>` 
-        : '';
-    
-    // 来源标签
-    const sourceTagHtml = node.source 
-        ? `<span class="source-tag" title="来源: ${node.source}">👤 ${node.source}</span>` 
-        : '';
-    
-    // 备注指示器
-    const noteIndicatorHtml = node.note 
-        ? `<span class="note-indicator" title="有备注: ${node.note.substring(0,50)}...">📝</span>` 
-        : '';
-    
-    // 逾期图标
-    const overdueIconHtml = (childOverdue && !date) 
-        ? '<span class="overdue-icon" title="有子任务已逾期">!</span>' 
-        : '';
-
-    let html = `
-    <div class="tree-item ${levelCls} ${cls}" data-id="${node.id}" data-level="${level}">
-        <div class="task-main" data-id="${node.id}">
-            <span class="toggle-arrow ${arrowCls}" data-action="toggle" data-id="${node.id}">▼</span>
-            <input type="checkbox" ${node.checked ? "checked" : ""} data-action="check" data-id="${node.id}" class="check-box">
-            <span class="task-text" data-action="edit" data-id="${node.id}">${displayName}</span>
-            <span class="tag-group">${dateTagHtml}${sourceTagHtml}${noteIndicatorHtml}</span>
-            ${overdueIconHtml}
-            <button class="more-btn" data-action="more" data-id="${node.id}" title="更多操作">⋯</button>
-        </div>
-        <div class="task-detail" data-detail="${node.id}">
-            ${node.source ? `<div class="meta-row"><div class="meta-item">👤 来源/发起人：${node.source}</div></div>` : ''}
-            ${node.note ? `<div class="note-content">📝 ${node.note}</div>` : ''}
-        </div>
+function shouldHide(node,level){ if(hideDoneAll&&node.checked) return true; if(hideLevels[level]&&node.checked) return true; return false; }
+function renderNode(node,level){
+    const levelCls=`level-${Math.min(level,4)}`; const {total,done,rate}=calcProgress(node);
+    let cls=""; if(node.checked) cls="completed"; else if(node.indeterminate) cls="indeterminate";
+    if(shouldHide(node,level)) return "";
+    if(searchKeyword&&!matchSearch(node,searchKeyword)) return `<div class="tree-item hidden-by-search" data-id="${node.id}"></div>`;
+    const hasChildren=total>0, arrowCls=hasChildren?(node.collapsed?"collapsed":""):"empty", childrenCls=node.collapsed?"collapsed":"";
+    const overdue=isOverdue(node), childOverdue=hasOverdueChild(node); if(overdue) cls+=" overdue-text";
+    const {date,name}=parseTaskText(node.text); const displayName=searchKeyword?highlightText(name,searchKeyword):name;
+    const dateTagHtml=date?`<span class="date-tag ${overdue?'overdue':''}" data-action="editDate" data-id="${node.id}">${date}</span>`:'';
+    const sourceTagHtml=node.source?`<span class="source-tag">👤 ${node.source}</span>`:'';
+    const noteIndicatorHtml=node.note?`<span class="note-indicator" title="${node.note.substring(0,50)}">📝</span>`:'';
+    const overdueIconHtml=(childOverdue&&!date)?'<span class="overdue-icon">!</span>':'';
+    let html=`<div class="tree-item ${levelCls} ${cls}" data-id="${node.id}"><div class="task-main" data-id="${node.id}">
+        <span class="toggle-arrow ${arrowCls}" data-action="toggle" data-id="${node.id}">▼</span>
+        <input type="checkbox" ${node.checked?'checked':''} data-action="check" data-id="${node.id}" class="check-box">
+        <span class="task-text" data-action="edit" data-id="${node.id}">${displayName}</span>
+        <span class="tag-group">${dateTagHtml}${sourceTagHtml}${noteIndicatorHtml}</span>${overdueIconHtml}
+        <button class="more-btn" data-action="more" data-id="${node.id}">⋯</button></div>
+        <div class="task-detail" data-detail="${node.id}">${node.source?`<div class="meta-row"><div class="meta-item">👤 来源：${node.source}</div></div>`:''}${node.note?`<div class="note-content">📝 ${node.note}</div>`:''}</div>
         <div class="task-actions" data-parent="${node.id}">
             <button class="btn btn-add" data-action="add" data-id="${node.id}">添加子任务</button>
             <button class="btn btn-edit" data-action="edit" data-id="${node.id}">修改</button>
-            <button class="btn btn-note" data-action="quickNote" data-id="${node.id}">备注</button>
-            <button class="btn btn-del" data-action="delete" data-id="${node.id}">删除</button>
-        </div>
-    `;
-    if(hasChildren){
-        html += `
-        <div class="progress-wrap">
-            <div class="progress-bar" style="width:${rate}%"></div>
-        </div>
-        <div class="children-wrap ${childrenCls}" data-parent="${node.id}">
-        `;
-        node.children.forEach(child=>{
-            html += renderNode(child, level+1);
-        });
-        html += `</div>`;
-    }
-    html += `</div>`;
-    return html;
+            <button class="btn btn-note" data-action="note" data-id="${node.id}">备注</button>
+            <button class="btn btn-del" data-action="delete" data-id="${node.id}">删除</button></div>`;
+    if(hasChildren){ html+=`<div class="progress-wrap"><div class="progress-bar" style="width:${rate}%"></div></div><div class="children-wrap ${childrenCls}" data-parent="${node.id}">`; node.children.forEach(c=>html+=renderNode(c,level+1)); html+=`</div>`; }
+    html+=`</div>`; return html;
 }
-
 function renderTree(){
-    const noResult = document.getElementById("noSearchResult");
-    noResult.style.display = "none";
-    
-    if(taskTree.length === 0){
-        treeWrap.innerHTML = `<div class="empty-tip">暂无任务，点右上角「+」新增或导入</div>`;
-        return;
-    }
-    let allHtml = "";
-    let visibleCount = 0;
-    taskTree.forEach(item=>{
-        const html = renderNode(item, 0);
-        allHtml += html;
-        if(!html.includes("hidden-by-search")) visibleCount++;
-    });
-    
-    if(!allHtml || visibleCount === 0){
-        if(searchKeyword){
-            treeWrap.innerHTML = "";
-            noResult.style.display = "block";
-        } else {
-            treeWrap.innerHTML = `<div class="empty-tip">当前无显示任务（已完成任务已隐藏）</div>`;
-        }
-        return;
-    }
-    
-    treeWrap.innerHTML = allHtml;
-
-    document.querySelectorAll('.check-box').forEach(cb=>{
-        const id = cb.dataset.id;
-        const node = findNode(taskTree, id);
-        if(node && node.indeterminate){
-            cb.indeterminate = true;
-        }
-    });
+    document.getElementById("noSearchResult").style.display="none";
+    if(taskTree.length===0){ treeWrap.innerHTML='<div class="empty-tip">暂无任务，点右上角「+」新增或导入</div>'; return; }
+    let allHtml="", visibleCount=0; taskTree.forEach(item=>{ const h=renderNode(item,0); allHtml+=h; if(!h.includes("hidden-by-search")) visibleCount++; });
+    if(visibleCount===0){ treeWrap.innerHTML=''; document.getElementById("noSearchResult").style.display="block"; return; }
+    treeWrap.innerHTML=allHtml;
+    document.querySelectorAll('.check-box').forEach(cb=>{ const id=cb.dataset.id; const node=findNode(taskTree,id); if(node&&node.indeterminate) cb.indeterminate=true; });
 }
 
-// ========== 事件委托 ==========
-treeWrap.addEventListener('click', function(e){
-    const actionEl = e.target.closest('[data-action]');
-    if(!actionEl) return;
-    
-    const action = actionEl.dataset.action;
-    const id = actionEl.dataset.id;
-    
-    if(!action || !id) return;
-    e.stopPropagation();
+// ========== API 调用 ==========
+function getSettings(){ return { platform:localStorage.getItem("ai_platform")||"deepseek", apiUrl:localStorage.getItem("ai_apiUrl")||DEFAULT_API_URLS.deepseek, apiKey:localStorage.getItem("ai_apiKey")||"", model:localStorage.getItem("ai_model")||"", systemPrompt:localStorage.getItem("ai_systemPrompt")||DEFAULT_SYSTEM_PROMPT }; }
+function saveSettings(s){ let url=s.apiUrl.trim(); if(url&&!url.endsWith("/chat/completions")) url=url.replace(/\/+$/,"")+"/chat/completions"; localStorage.setItem("ai_platform",s.platform); localStorage.setItem("ai_apiUrl",url); localStorage.setItem("ai_apiKey",s.apiKey); localStorage.setItem("ai_model",s.model); localStorage.setItem("ai_systemPrompt",s.systemPrompt); }
+function updateModelSelect(platform){ const sel=document.getElementById("modelSelect"); const models=MODEL_LISTS[platform]||[]; sel.innerHTML=models.map(m=>`<option value="${m.value}">${m.label}</option>`).join(""); const saved=getSettings(); if(saved.model&&models.find(m=>m.value===saved.model)) sel.value=saved.model; }
+async function callAI(messages, customUrl=null){
+    const s=getSettings(); const url=customUrl||s.apiUrl;
+    if(!url||!s.apiKey||!s.model) throw new Error("API配置不完整");
+    const resp=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${s.apiKey}`},body:JSON.stringify({model:s.model,messages,temperature:0.7,max_tokens:2000})});
+    if(!resp.ok){ const err=await resp.json().catch(()=>({})); throw new Error(err.error?.message||`请求失败(${resp.status})`); }
+    const data=await resp.json(); return data.choices[0].message.content;
+}
+function cleanAIOutput(text){ return text.replace(/^```[a-zA-Z]*\n?/gm,'').replace(/\n?```$/gm,'').trim(); }
 
-    const node = findNode(taskTree, id);
-    if(!node) return;
+// ========== 事件绑定 ==========
+document.getElementById("menuBtn").onclick=e=>{ e.stopPropagation(); document.getElementById("dropdownMenu").classList.toggle("show"); };
+document.addEventListener("click",()=>{ document.getElementById("dropdownMenu").classList.remove("show"); document.getElementById("hideSubmenu").classList.remove("show"); });
+document.getElementById("dropdownMenu").onclick=e=>e.stopPropagation();
+document.getElementById("menuHideLevel").onclick=e=>{ e.stopPropagation(); document.getElementById("hideSubmenu").classList.toggle("show"); };
+document.querySelectorAll(".hide-submenu .menu-item[data-hidelevel]").forEach(item=>{ item.onclick=function(e){ e.stopPropagation(); const lv=parseInt(this.dataset.hidelevel); hideLevels[lv]=!hideLevels[lv]; this.style.background=hideLevels[lv]?'#e6f7ff':''; this.style.color=hideLevels[lv]?'#409eff':''; renderTree(); }; });
+document.getElementById("showAllBtn").onclick=e=>{ e.stopPropagation(); hideDoneAll=false; hideLevels={}; document.getElementById("hideDoneBtn").classList.remove("active"); document.querySelectorAll(".hide-submenu .menu-item[data-hidelevel]").forEach(i=>{i.style.background='';i.style.color='';}); renderTree(); };
+document.getElementById("hideDoneBtn").onclick=function(){ hideDoneAll=!hideDoneAll; this.classList.toggle("active"); renderTree(); };
 
+// 搜索
+document.getElementById("searchInput").addEventListener("input",function(){ clearTimeout(this._timer); this._timer=setTimeout(()=>{ searchKeyword=this.value.trim(); document.getElementById("searchClear").style.display=searchKeyword?'inline-block':'none'; renderTree(); },300); });
+document.getElementById("searchClear").onclick=()=>{ searchInput.value=''; searchKeyword=''; searchClear.style.display='none'; renderTree(); };
+
+// 树区域事件委托
+treeWrap.addEventListener("click",function(e){
+    const el=e.target.closest("[data-action]"); if(!el) return; const action=el.dataset.action, id=el.dataset.id; e.stopPropagation();
+    const node=findNode(taskTree,id); if(!node) return;
     switch(action){
-        case 'toggle':
-            if(actionEl.classList.contains('empty')) return;
-            node.collapsed = !node.collapsed;
-            saveData();
-            renderTree();
-            break;
-
-        case 'check':
-            toggleCheck(node);
-            break;
-
-        case 'edit':
-        case 'editDate':
-            openEditModal(id);
-            break;
-
-        case 'more':
-            const actionBar = document.querySelector(`.task-actions[data-parent="${id}"]`);
-            const detailBar = document.querySelector(`.task-detail[data-detail="${id}"]`);
-            if(actionBar) {
-                document.querySelectorAll('.task-actions.show').forEach(bar => {
-                    if(bar.dataset.parent !== id) bar.classList.remove('show');
-                });
-                actionBar.classList.toggle('show');
-            }
-            if(detailBar && (node.source || node.note)){
-                detailBar.classList.toggle('show');
-            }
-            break;
-
-        case 'quickNote':
-            const noteText = prompt("输入备注内容：", node.note || "");
-            if(noteText === null) return;
-            node.note = noteText.trim();
-            saveData();
-            renderTree();
-            break;
-
-        case 'add':
-            const childText = prompt("输入子步骤内容：");
-            if(!childText?.trim()) return;
-            const newChild = {
-                id: genId(),
-                text: childText.trim(),
-                checked: false,
-                indeterminate: false,
-                collapsed: false,
-                source: "",
-                note: "",
-                children: []
-            };
-            if(!node.children) node.children = [];
-            node.children.push(newChild);
-            node.collapsed = false;
-            saveData();
-            renderTree();
-            break;
-
-        case 'delete':
-            if(!confirm("确定删除该任务及其所有子任务吗？")) return;
-            deleteNode(taskTree, id);
-            saveData();
-            renderTree();
-            break;
+        case "toggle": if(el.classList.contains("empty")) return; node.collapsed=!node.collapsed; saveData(); renderTree(); break;
+        case "check": toggleCheck(node); break;
+        case "edit": case "editDate": openEditModal(id); break;
+        case "more": const ab=document.querySelector(`.task-actions[data-parent="${id}"]`), db=document.querySelector(`.task-detail[data-detail="${id}"]`); if(ab){ document.querySelectorAll(".task-actions.show").forEach(b=>{if(b.dataset.parent!==id) b.classList.remove("show");}); ab.classList.toggle("show"); } if(db&&(node.source||node.note)) db.classList.toggle("show"); break;
+        case "note": openNoteModal(id); break;
+        case "add": const ct=prompt("输入子步骤内容："); if(ct&&ct.trim()){ const nc={id:genId(),text:ct.trim(),checked:false,indeterminate:false,collapsed:false,source:"",note:"",children:[]}; if(!node.children) node.children=[]; node.children.push(nc); node.collapsed=false; saveData(); renderTree(); } break;
+        case "delete": if(confirm("确定删除该任务及其所有子任务吗？")){ deleteNode(taskTree,id); saveData(); renderTree(); } break;
     }
 });
+treeWrap.addEventListener("dblclick",function(e){ const tm=e.target.closest(".task-main"); if(tm){ const id=tm.dataset.id; if(id) openEditModal(id); } });
 
-// 点击备注指示器显示详情
-treeWrap.addEventListener('click', function(e){
-    if(e.target.classList.contains('note-indicator')){
-        const taskMain = e.target.closest('.task-main');
-        if(!taskMain) return;
-        const id = taskMain.dataset.id;
-        const detailBar = document.querySelector(`.task-detail[data-detail="${id}"]`);
-        if(detailBar) detailBar.classList.toggle('show');
-    }
-});
+function openEditModal(id){ currentEditId=id; const node=findNode(taskTree,id); if(!node) return; const {date,name}=parseTaskText(node.text); document.getElementById("editNameInput").value=name; document.getElementById("editDateInput").value=date||""; document.getElementById("editSourceInput").value=node.source||""; document.getElementById("editNoteInput").value=node.note||""; document.getElementById("editModal").style.display="flex"; }
 
-treeWrap.addEventListener('dblclick', function(e){
-    const taskMain = e.target.closest('.task-main');
-    if(!taskMain) return;
-    const id = taskMain.dataset.id;
-    if(!id) return;
-    e.stopPropagation();
-    openEditModal(id);
-});
+// 备注弹窗
+function openNoteModal(id){ currentNoteId=id; const node=findNode(taskTree,id); document.getElementById("noteSourceInput").value=node.source||""; document.getElementById("noteContentInput").value=node.note||""; document.getElementById("noteModal").style.display="flex"; }
+document.getElementById("noteSave").onclick=()=>{ const node=findNode(taskTree,currentNoteId); if(node){ node.source=document.getElementById("noteSourceInput").value.trim(); node.note=document.getElementById("noteContentInput").value.trim(); saveData(); renderTree(); } document.getElementById("noteModal").style.display="none"; };
+document.getElementById("noteCancel").onclick=()=>document.getElementById("noteModal").style.display="none";
 
-function openEditModal(id){
-    currentEditId = id;
-    const node = findNode(taskTree, currentEditId);
-    if(!node) return;
-    const {date, name} = parseTaskText(node.text);
-    document.getElementById("editNameInput").value = name;
-    document.getElementById("editDateInput").value = date || "";
-    document.getElementById("editSourceInput").value = node.source || "";
-    document.getElementById("editNoteInput").value = node.note || "";
-    document.getElementById("editModal").style.display = "flex";
-}
+// 设置弹窗
+document.getElementById("menuSettings").onclick=()=>{ const s=getSettings(); document.getElementById("aiPlatform").value=s.platform; document.getElementById("apiUrlInput").value=s.apiUrl; document.getElementById("apiKeyInput").value=s.apiKey; document.getElementById("systemPromptInput").value=(s.systemPrompt===DEFAULT_SYSTEM_PROMPT)?"":s.systemPrompt; updateModelSelect(s.platform); document.getElementById("modelSelect").value=s.model; document.getElementById("settingsModal").style.display="flex"; };
+document.getElementById("aiPlatform").onchange=function(){ const p=this.value; updateModelSelect(p); const du=DEFAULT_API_URLS[p]; if(du) document.getElementById("apiUrlInput").value=du; };
+document.getElementById("resetPromptBtn").onclick=()=>document.getElementById("systemPromptInput").value=DEFAULT_SYSTEM_PROMPT;
+document.getElementById("settingsCancel").onclick=()=>document.getElementById("settingsModal").style.display="none";
+document.getElementById("settingsSave").onclick=()=>{ const p=document.getElementById("aiPlatform").value, url=document.getElementById("apiUrlInput").value.trim(), key=document.getElementById("apiKeyInput").value.trim(), model=document.getElementById("modelSelect").value, sp=document.getElementById("systemPromptInput").value.trim()||DEFAULT_SYSTEM_PROMPT; if(!url||!key||!model) return alert("请完整填写"); saveSettings({platform:p,apiUrl:url,apiKey:key,model,systemPrompt:sp}); document.getElementById("settingsModal").style.display="none"; alert("设置已保存"); };
+// API测试
+document.getElementById("testApiBtn").onclick=async function(){ const res=document.getElementById("testResult"); res.className="test-result"; res.textContent="⏳ 测试中..."; res.style.display="block"; try{ const tmpUrl=document.getElementById("apiUrlInput").value.trim(), tmpKey=document.getElementById("apiKeyInput").value.trim(), tmpModel=document.getElementById("modelSelect").value; if(!tmpUrl||!tmpKey||!tmpModel) throw new Error("请完整填写API信息"); const orig=getSettings(); saveSettings({platform:document.getElementById("aiPlatform").value,apiUrl:tmpUrl,apiKey:tmpKey,model:tmpModel,systemPrompt:orig.systemPrompt}); await callAI([{role:"user",content:"Hi"}]); saveSettings(orig); res.className="test-result success"; res.textContent="✅ 连接成功"; }catch(e){ res.className="test-result error"; res.textContent="❌ 失败："+e.message; } };
 
-function shouldHide(node, level){
-    if(hideDoneAll && node.checked) return true;
-    if(hideLevels[level] && node.checked) return true;
-    return false;
-}
+// 新增任务弹窗
+document.getElementById("menuAddTop").onclick=()=>{ document.getElementById("addTopInput").value=""; document.getElementById("addTopDate").value=""; document.getElementById("addTopSource").value=""; document.getElementById("addTopNote").value=""; document.getElementById("aiRewritePreview").style.display="none"; document.getElementById("aiRewriteLoading").style.display="none"; document.getElementById("addTopTip").textContent="💡 口语描述后点AI改写"; aiGeneratedTreeText=""; document.getElementById("addTopModal").style.display="flex"; };
+document.getElementById("addTopCancel").onclick=()=>document.getElementById("addTopModal").style.display="none";
+document.getElementById("clearAddDate").onclick=()=>document.getElementById("addTopDate").value="";
+document.getElementById("aiRewriteInAddBtn").onclick=async function(){ const input=document.getElementById("addTopInput").value.trim(); if(!input) return alert("请输入描述"); const btn=this; btn.disabled=true; btn.textContent="生成中..."; document.getElementById("aiRewriteLoading").style.display="block"; try{ const result=await callAI([{role:"system",content:getSettings().systemPrompt},{role:"user",content:input}]); const cleaned=cleanAIOutput(result); document.getElementById("aiRewritePreview").textContent=cleaned; document.getElementById("aiRewritePreview").style.display="block"; aiGeneratedTreeText=cleaned; document.getElementById("addTopTip").textContent="✅ 生成成功，点击添加导入"; }catch(e){ alert("AI错误："+e.message); }finally{ btn.disabled=false; btn.textContent="🔄 AI改写"; document.getElementById("aiRewriteLoading").style.display="none"; } };
+document.getElementById("addTopConfirm").onclick=function(){ if(aiGeneratedTreeText){ const root=parseTreeText(aiGeneratedTreeText); if(!root) return alert("格式错误"); const src=document.getElementById("addTopSource").value.trim(), nt=document.getElementById("addTopNote").value.trim(); if(src) root.source=src; if(nt) root.note=nt; taskTree.push(root); }else{ const name=document.getElementById("addTopInput").value.trim(); if(!name) return alert("请输入名称"); const date=document.getElementById("addTopDate").value, src=document.getElementById("addTopSource").value.trim(), nt=document.getElementById("addTopNote").value.trim(); taskTree.push({id:genId(),text:combineTaskText(date,name),checked:false,indeterminate:false,collapsed:false,source:src,note:nt,children:[]}); } document.getElementById("addTopModal").style.display="none"; saveData(); renderTree(); aiGeneratedTreeText=""; };
 
-// ========== 搜索功能 ==========
-const searchInput = document.getElementById("searchInput");
-const searchClear = document.getElementById("searchClear");
-let searchTimeout;
+// 修改弹窗 AI 改写
+document.getElementById("aiRewriteEditBtn").onclick=async function(){ const input=document.getElementById("editNameInput").value.trim(); if(!input) return alert("请输入描述"); const btn=this; btn.disabled=true; btn.textContent="生成中..."; try{ const result=await callAI([{role:"system",content:"将以下描述转换为一个简洁的任务名，可含【日期】格式。只返回名称。"},{role:"user",content:input}]); document.getElementById("editNameInput").value=cleanAIOutput(result); }catch(e){ alert("AI错误："+e.message); }finally{ btn.disabled=false; btn.textContent="🔄 AI改写"; } };
+document.getElementById("editCancel").onclick=()=>document.getElementById("editModal").style.display="none";
+document.getElementById("clearEditDate").onclick=()=>document.getElementById("editDateInput").value="";
+document.getElementById("editConfirm").onclick=()=>{ const name=document.getElementById("editNameInput").value.trim(); if(!name) return alert("名称不能为空"); const node=findNode(taskTree,currentEditId); if(!node) return; node.text=combineTaskText(document.getElementById("editDateInput").value,name); node.source=document.getElementById("editSourceInput").value.trim(); node.note=document.getElementById("editNoteInput").value.trim(); saveData(); renderTree(); document.getElementById("editModal").style.display="none"; };
 
-searchInput.addEventListener("input", function(){
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-        searchKeyword = this.value.trim();
-        searchClear.style.display = searchKeyword ? "inline-block" : "none";
-        renderTree();
-    }, 300);
-});
+// 批量导入弹窗（带AI改写）
+document.getElementById("menuImport").onclick=()=>{ document.getElementById("importDescInput").value=""; document.getElementById("importTextarea").value=""; document.getElementById("importAiPreview").style.display="none"; document.getElementById("importAiLoading").style.display="none"; document.getElementById("importModal").style.display="flex"; };
+document.getElementById("importCancel").onclick=()=>document.getElementById("importModal").style.display="none";
+document.getElementById("aiRewriteImportBtn").onclick=async function(){
+    const desc=document.getElementById("importDescInput").value.trim();
+    if(!desc) return alert("请用口语描述你要做的事情");
+    const btn=this; btn.disabled=true; btn.textContent="生成中..."; document.getElementById("importAiLoading").style.display="block";
+    try{
+        const result=await callAI([{role:"system",content:getSettings().systemPrompt},{role:"user",content:desc}]);
+        const cleaned=cleanAIOutput(result);
+        document.getElementById("importTextarea").value=cleaned;
+        document.getElementById("importAiPreview").textContent=cleaned;
+        document.getElementById("importAiPreview").style.display="block";
+    }catch(e){ alert("AI错误："+e.message); }
+    finally{ btn.disabled=false; btn.textContent="🔄 AI改写"; document.getElementById("importAiLoading").style.display="none"; }
+};
+document.getElementById("importConfirm").onclick=function(){
+    const txt=document.getElementById("importTextarea").value.trim();
+    if(!txt) return alert("请粘贴或AI生成树形文本");
+    const root=parseTreeText(txt);
+    if(!root) return alert("解析失败，请检查格式");
+    taskTree.push(root); saveData(); renderTree();
+    document.getElementById("importModal").style.display="none";
+};
 
-searchClear.addEventListener("click", function(){
-    searchInput.value = "";
-    searchKeyword = "";
-    searchClear.style.display = "none";
-    renderTree();
-    searchInput.focus();
-});
-
-// ========== AI API 调用 ==========
-async function callAI(userInput){
-    const settings = getSettings();
-    
-    if(!settings.apiUrl){
-        throw new Error("请先在设置中配置 API 地址");
-    }
-    if(!settings.apiKey){
-        throw new Error("请先在设置中配置 API Key");
-    }
-    if(!settings.model){
-        throw new Error("请先在设置中选择模型");
-    }
-    
-    const systemPrompt = settings.systemPrompt || DEFAULT_SYSTEM_PROMPT;
-    
-    const response = await fetch(settings.apiUrl, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${settings.apiKey}`
-        },
-        body: JSON.stringify({
-            model: settings.model,
-            messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: userInput }
-            ],
-            temperature: 0.7,
-            max_tokens: 2000
-        })
-    });
-    
-    if(!response.ok){
-        const err = await response.json().catch(()=>({}));
-        throw new Error(err.error?.message || `请求失败 (${response.status})`);
-    }
-    
-    const data = await response.json();
-    return data.choices[0].message.content;
-}
-
-// ========== 菜单事件 ==========
-const menuBtn = document.getElementById("menuBtn");
-const dropdownMenu = document.getElementById("dropdownMenu");
-
-menuBtn.onclick = function(e){
-    e.stopPropagation();
-    dropdownMenu.classList.toggle("show");
-}
-document.addEventListener("click", function(){
-    dropdownMenu.classList.remove("show");
-    document.getElementById("hideSubmenu").classList.remove("show");
-});
-dropdownMenu.onclick = function(e){
-    e.stopPropagation();
-}
-
-document.getElementById("menuHideLevel").onclick = function(e){
-    e.stopPropagation();
-    document.getElementById("hideSubmenu").classList.toggle("show");
-}
-
-document.querySelectorAll(".hide-submenu .menu-item[data-hidelevel]").forEach(item=>{
-    item.onclick = function(e){
-        e.stopPropagation();
-        const lv = parseInt(this.dataset.hidelevel);
-        hideLevels[lv] = !hideLevels[lv];
-        this.style.background = hideLevels[lv] ? '#e6f7ff' : '';
-        this.style.color = hideLevels[lv] ? '#409eff' : '';
-        renderTree();
-    }
-});
-
-document.getElementById("showAllBtn").onclick = function(e){
-    e.stopPropagation();
-    hideDoneAll = false;
-    hideLevels = {};
-    document.getElementById("hideDoneBtn").classList.remove("active");
-    document.querySelectorAll(".hide-submenu .menu-item[data-hidelevel]").forEach(item=>{
-        item.style.background = '';
-        item.style.color = '';
-    });
-    dropdownMenu.classList.remove("show");
-    document.getElementById("hideSubmenu").classList.remove("show");
-    renderTree();
-}
-
-document.getElementById("hideDoneBtn").onclick = function(){
-    hideDoneAll = !hideDoneAll;
-    this.classList.toggle("active");
-    renderTree();
-}
-
-// ========== API设置弹窗 ==========
-document.getElementById("menuSettings").onclick = function(){
-    dropdownMenu.classList.remove("show");
-    const settings = getSettings();
-    document.getElementById("aiPlatform").value = settings.platform;
-    // 显示保存的完整 URL（可能已补全）
-    document.getElementById("apiUrlInput").value = settings.apiUrl;
-    document.getElementById("apiKeyInput").value = settings.apiKey;
-    document.getElementById("systemPromptInput").value = 
-        (settings.systemPrompt === DEFAULT_SYSTEM_PROMPT) ? "" : settings.systemPrompt;
-    updateModelSelect(settings.platform);
-    document.getElementById("modelSelect").value = settings.model;
-    document.getElementById("settingsModal").style.display = "flex";
-}
-
-document.getElementById("aiPlatform").onchange = function(){
-    const platform = this.value;
-    updateModelSelect(platform);
-    // 自动填充默认 API 地址
-    const defaultUrl = getDefaultApiUrl(platform);
-    const currentUrl = document.getElementById("apiUrlInput").value;
-    // 如果当前地址为空，或者是之前某个平台的默认地址，则自动替换
-    if(defaultUrl && (!currentUrl || Object.values(DEFAULT_API_URLS).includes(currentUrl))){
-        document.getElementById("apiUrlInput").value = defaultUrl;
-    }
-    // 更新提示
-    const tip = document.getElementById("apiUrlTip");
-    if(platform === "deepseek"){
-        tip.innerHTML = "🔗 DeepSeek默认：https://api.deepseek.com/v1/chat/completions";
-    } else {
-        tip.innerHTML = "🔗 MiMo默认：https://api.xiaomimimo.com/v1/chat/completions<br>（也可只填 https://api.xiaomimimo.com/v1 ，保存时自动补全）";
-    }
-}
-
-document.getElementById("resetPromptBtn").onclick = function(){
-    document.getElementById("systemPromptInput").value = DEFAULT_SYSTEM_PROMPT;
-}
-
-document.getElementById("settingsCancel").onclick = function(){
-    document.getElementById("settingsModal").style.display = "none";
-}
-
-document.getElementById("settingsSave").onclick = function(){
-    const platform = document.getElementById("aiPlatform").value;
-    const apiUrl = document.getElementById("apiUrlInput").value.trim();
-    const apiKey = document.getElementById("apiKeyInput").value.trim();
-    const model = document.getElementById("modelSelect").value;
-    const systemPrompt = document.getElementById("systemPromptInput").value.trim() || DEFAULT_SYSTEM_PROMPT;
-    
-    if(!apiUrl){
-        alert("请输入 API 地址");
-        return;
-    }
-    if(!apiKey){
-        alert("请输入 API Key");
-        return;
-    }
-    if(!model){
-        alert("请选择模型");
-        return;
-    }
-    
-    // 保存设置，内部会自动补全 URL
-    saveSettings({ platform, apiUrl, apiKey, model, systemPrompt });
-    document.getElementById("settingsModal").style.display = "none";
-    alert("设置已保存！");
-}
-
-// ========== 新增任务弹窗（整合AI改写）==========
-let isAddMode = true;
-let addParentId = null;
-
-document.getElementById("menuAddTop").onclick = function(){
-    dropdownMenu.classList.remove("show");
-    openAddModal(true, null);
-}
-
-function openAddModal(isTop, parentId){
-    isAddMode = isTop;
-    addParentId = parentId;
-    document.getElementById("addTopTitle").textContent = isTop ? "新增顶层任务" : "添加子任务";
-    document.getElementById("addTopInput").value = "";
-    document.getElementById("addTopDate").value = "";
-    document.getElementById("addTopSource").value = "";
-    document.getElementById("addTopNote").value = "";
-    document.getElementById("aiRewritePreview").style.display = "none";
-    document.getElementById("aiRewritePreview").textContent = "";
-    document.getElementById("aiRewriteLoading").style.display = "none";
-    document.getElementById("addTopTip").style.display = "block";
-    document.getElementById("addTopTip").textContent = "💡 可以直接输入任务名，也可以用口语描述后点「AI改写」自动生成";
-    document.getElementById("addTopTip").style.color = "#909399";
-    document.getElementById("addTopConfirm").textContent = "添加";
-    aiGeneratedTreeText = "";
-    document.getElementById("addTopModal").style.display = "flex";
-    document.getElementById("addTopInput").focus();
-}
-
-document.getElementById("addTopCancel").onclick = function(){
-    document.getElementById("addTopModal").style.display = "none";
-}
-
-document.getElementById("clearAddDate").onclick = function(){
-    document.getElementById("addTopDate").value = "";
-}
-
-// AI改写按钮（在新增弹窗内）
-document.getElementById("aiRewriteInAddBtn").onclick = async function(){
-    const settings = getSettings();
-    if(!settings.apiUrl || !settings.apiKey || !settings.model){
-        alert("请先在设置中配置 API（+ 菜单 → ⚙️ API设置）");
-        return;
-    }
-    
-    const userInput = document.getElementById("addTopInput").value.trim();
-    if(!userInput){
-        alert("请先在输入框中用口语描述你的任务");
-        return;
-    }
-    
-    const btn = document.getElementById("aiRewriteInAddBtn");
-    const loading = document.getElementById("aiRewriteLoading");
-    const preview = document.getElementById("aiRewritePreview");
-    const tip = document.getElementById("addTopTip");
-    
-    btn.disabled = true;
-    btn.textContent = "生成中...";
-    loading.style.display = "block";
-    preview.style.display = "none";
-    tip.style.display = "none";
-    
-    try {
-        const result = await callAI(userInput);
-        aiGeneratedTreeText = result;
-        preview.textContent = result;
-        preview.style.display = "block";
-        loading.style.display = "none";
-        tip.textContent = "✅ AI 生成完成！请预览，确认后点「添加」导入";
-        tip.style.color = "#27ae60";
-        tip.style.display = "block";
-        document.getElementById("addTopConfirm").textContent = "✅ 导入AI生成结果";
-    } catch(err) {
-        loading.style.display = "none";
-        tip.textContent = "❌ " + err.message;
-        tip.style.color = "#e74c3c";
-        tip.style.display = "block";
-        console.error(err);
-    } finally {
-        btn.disabled = false;
-        btn.textContent = "🔄 AI改写";
-    }
-}
-
-document.getElementById("addTopConfirm").onclick = function(){
-    if(aiGeneratedTreeText){
-        const root = parseTreeText(aiGeneratedTreeText);
-        if(!root){
-            alert("AI 生成格式有误，请检查预览内容或重新生成");
-            return;
-        }
-        const source = document.getElementById("addTopSource").value.trim();
-        const note = document.getElementById("addTopNote").value.trim();
-        if(source) root.source = source;
-        if(note) root.note = note;
-        
-        if(isAddMode){
-            taskTree.push(root);
-        } else {
-            const parent = findNode(taskTree, addParentId);
-            if(parent){
-                if(!parent.children) parent.children = [];
-                parent.children.push(root);
-                parent.collapsed = false;
-            }
-        }
-        document.getElementById("addTopModal").style.display = "none";
-        saveData();
-        renderTree();
-        alert("导入成功！");
-        return;
-    }
-    
-    const name = document.getElementById("addTopInput").value.trim();
-    const date = document.getElementById("addTopDate").value;
-    const source = document.getElementById("addTopSource").value.trim();
-    const note = document.getElementById("addTopNote").value.trim();
-    
-    if(!name){
-        alert("请输入任务名称");
-        return;
-    }
-    
-    const fullText = combineTaskText(date, name);
-    const newNode = {
-        id: genId(),
-        text: fullText,
-        checked: false,
-        indeterminate: false,
-        collapsed: false,
-        source: source,
-        note: note,
-        children: []
-    };
-    
-    if(isAddMode){
-        taskTree.push(newNode);
-    } else {
-        const parent = findNode(taskTree, addParentId);
-        if(parent){
-            if(!parent.children) parent.children = [];
-            parent.children.push(newNode);
-            parent.collapsed = false;
-        }
-    }
-    
-    document.getElementById("addTopModal").style.display = "none";
-    saveData();
-    renderTree();
-}
-
-document.getElementById("addTopInput").onkeydown = e=>{
-    if(e.key === "Enter" && !e.shiftKey){
-        e.preventDefault();
-        document.getElementById("addTopConfirm").click();
-    }
-}
-
-// ========== 修改弹窗 ==========
-document.getElementById("editCancel").onclick = function(){
-    document.getElementById("editModal").style.display = "none";
-    currentEditId = null;
-}
-document.getElementById("clearEditDate").onclick = function(){
-    document.getElementById("editDateInput").value = "";
-}
-document.getElementById("editConfirm").onclick = function(){
-    const name = document.getElementById("editNameInput").value.trim();
-    const date = document.getElementById("editDateInput").value;
-    const source = document.getElementById("editSourceInput").value.trim();
-    const note = document.getElementById("editNoteInput").value.trim();
-    
-    if(!name){alert("任务名称不能为空");return}
-    const node = findNode(taskTree, currentEditId);
-    if(!node) return;
-    node.text = combineTaskText(date, name);
-    node.source = source;
-    node.note = note;
-    saveData();
-    renderTree();
-    document.getElementById("editModal").style.display = "none";
-    currentEditId = null;
-}
-
-// ========== 批量导入弹窗 ==========
-document.getElementById("menuImport").onclick = function(){
-    dropdownMenu.classList.remove("show");
-    document.getElementById("importTextarea").value = "";
-    document.getElementById("importModal").style.display = "flex";
-}
-document.getElementById("importCancel").onclick = function(){
-    document.getElementById("importModal").style.display = "none";
-}
-document.getElementById("importConfirm").onclick = function(){
-    const txt = document.getElementById("importTextarea").value.trim();
-    if(!txt){alert("请粘贴树形任务文本再导入");return}
-    const root = parseTreeText(txt);
-    if(!root){alert("解析失败，请使用标准格式");return}
-    taskTree.push(root);
-    document.getElementById("importModal").style.display = "none";
-    saveData();
-    renderTree();
-    alert("导入成功！");
-}
-
-// 点击弹窗遮罩关闭
-document.querySelectorAll('.modal-mask').forEach(mask=>{
-    mask.addEventListener('click', function(e){
-        if(e.target === this){
-            this.style.display = "none";
-        }
-    });
-});
-
-// ========== 初始化 ==========
-function init(){
-    const settings = getSettings();
-    document.getElementById("aiPlatform").value = settings.platform;
-    document.getElementById("apiUrlInput").value = settings.apiUrl;
-    updateModelSelect(settings.platform);
-    document.getElementById("modelSelect").value = settings.model;
-    renderTree();
-}
-
-init();
+// 初始化
+updateModelSelect("deepseek");
+renderTree();
 </script>
 </body>
 </html>
